@@ -25,13 +25,12 @@ struct phdr	{
 
 int is-luks-volume(FILE *fp)	{
 	unsigned char luks-magic[] = {"L","U","K","S",0xBA,0xBE};
-	unsigned char magic[6];
+	unsigned char magic[5];
 	int i;
 
 	for (i=0; i < 6; i++)	{
 		fread(&(magic+i), sizeof(char), 1, fp);
 	}
-	magic+i = '\0';
 
 	if (memcmp(magic, luks-magic)){
 		return 1;
