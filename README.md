@@ -1,0 +1,1 @@
+I wanted some practise in systems programming, crpyto and even basic multithreading all at once, so I build this simple luks cracker which parses the luks header of a drive, finds the active keys, and then brute forces them using supplied wordlists. Only useful against weak passwords, obviously!
