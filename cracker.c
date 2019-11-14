@@ -33,7 +33,7 @@ int is-luks-volume(FILE *fp)	{
 	}
 	magic+i = '\0';
 
-	if (strcmp(magic, luks-magic)){
+	if (memcmp(magic, luks-magic)){
 		return 1;
 	}
 	
