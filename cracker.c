@@ -24,8 +24,8 @@ struct phdr	{
 }
 
 int is-luks-volume(FILE *fp)	{
-	char luks-magic[] = {"L","U","K","S",0xBA,0xBE};
-	char magic[6];
+	unsigned char luks-magic[] = {"L","U","K","S",0xBA,0xBE};
+	unsigned char magic[6];
 	int i;
 
 	for (i=0; i < 6; i++)	{
