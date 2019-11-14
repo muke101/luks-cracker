@@ -3,10 +3,13 @@
 #include <stdlib.h>
 #define FIRST-KEY-OFFSET 208
 #define KEY-SLOT-SIZE 48
+#define SALT-LENGTH 32
+#define DIGEST-LENGTH 20
+#define TOTAL-KEY-SLOTS 8
 
 struct key-slot	{
 	unsigned int iterations[3];
-	unsigned char salt[32];
+	unsigned char salt[SALT-LENGTH-1];
 	unsigned int key-offset[3];
 	unsigned int stripes[3];
 }
@@ -17,10 +20,10 @@ struct phdr	{
 	char hash-spec[32];
 	unsigned int payload-offset[3];
 	unsigned int key-bytes-length[3];
-	unsigned char mk-digest[20];
-	unsigned char mk-digest-salt[32];
+	unsigned char mk-digest[DIGEST-LENGTH-1];
+	unsigned char mk-digest-salt[SALT-LENGTH-1];
 	unsigned int mk-digest-iter[3];
-	struct key-slot active-key-slots[7];
+	struct key-slot active-key-slots[TOTAL-KEY-SLOTS-1];
 }
 
 int is-luks-volume(FILE *fp)	{
@@ -32,7 +35,7 @@ int is-luks-volume(FILE *fp)	{
 		fread(&(magic+i), sizeof(char), 1, fp);
 	}
 
-	if (memcmp(magic, luks-magic)){
+	if (memcmp(magic, luks-magic, 6) == 0){
 		return 1;
 	}
 	
@@ -62,14 +65,12 @@ struct phdr construct-header(FILE *fp)	{
 	for (i=0; i < 4; i++)	{
 		fread(&(header.payload-offset+i), sizeof(int), 1, fp);
 	}
-	for (i=0; i < 20; i++)	{
+	for (i=0; i < DIGEST-LENGTH; i++)	{
 		fread(&(header.mk-digest+i), sizeof(char), 1, fp);
 	}
-	*(header.mk-digest+i) = '\0';
-	for (i=0; i < 32; i++)	{
+	for (i=0; i < SALT-LENGTH; i++)	{
 		fread(&(header.mk-digest-salt+i), sizeof(char), 1, fp);
 	}
-	*(header.mk-digest-salt+i) = '\0';
 	for (i=0; i < 4; i++)	{
 		fread(&(header.mk-digest-iter+i), sizeof(int), 1, fp);
 	}
@@ -86,10 +87,9 @@ void add-slot(FILE *fp, struct phdr header)	{
 	for (i=0; i < 4; i++)	{
 		fread(&(slot.iterations+i), sizeof(int), 1, fp);
 	}
-	for (i=0; i < 32; i++)	{
+	for (i=0; i < SALT-LENGTH; i++)	{
 		fread(&(slot.salt+i), sizeof(char), 1, fp);
 	}
-	*(slot.slat+i) = '\0';
 	for (i=0; i < 4; i++)	{
 		fread(&(slot.key-offset+i), sizeof(int), 1, fp);
 	}
@@ -119,6 +119,14 @@ void set-active-slots(struct phdr header, FILE *fp)	{
 			fseek(fp, KEY-SLOT-SIZE-4, SEEK_CUR);
 		}
 	}
+}
+
+void find-keys(struct phdr header, unsigned char *keys)	{
+	int i;
+
+	for (i=0; header.active-key-slots[i] != NULL; i++)	{
+		
+	}
 
 }
 
@@ -137,7 +145,10 @@ int main(int argc, char *argv[])	{
 		return 1;
 	}
 
+	unsigned char *keys[TOTAL-KEY-SLOTS-1];
+
 	set-active-slots(header, fp);
+	find-keys(header, keys);
 
 	fclose(fp);
 	return 0;
