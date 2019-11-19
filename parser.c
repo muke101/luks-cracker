@@ -77,7 +77,7 @@ struct phdr construct_header(FILE *fp)	{
 
 }
 
-void add_slot(FILE *fp, struct phdr header, struct key-slot slot)	{
+void add_slot(struct phdr header, struct key-slot slot, FILE *fp)	{
 
 	//todo: sort out struct passing
 	static int i = 0;
@@ -95,6 +95,10 @@ void add_slot(FILE *fp, struct phdr header, struct key-slot slot)	{
 
 }
 
+int is_active(int *active)	{
+	for
+}
+
 void set_active_slots(struct phdr header, FILE *fp)	{
 	fseek(fp, FIRST_KEY_OFFSET, SEEK_SET);
 	int i;
@@ -103,8 +107,8 @@ void set_active_slots(struct phdr header, FILE *fp)	{
 		int active[4];
 		read_data(active, sizeof(int), 4, fp);
 
-		if (is_active(active))	{
-			add_slot(fp); //todo: implement
+		if (is_active(active))	{ //todo: implement
+			add_slot(header,fp); 
 		}
 		else {
 			fseek(fp, KEY_SLOT_SIZE-4, SEEK_CUR);
@@ -115,11 +119,11 @@ void set_active_slots(struct phdr header, FILE *fp)	{
 void find_keys(struct phdr header, unsigned char *keys, FILE *fp)	{
 	int i, key_length;
 
-	switch header.cipher_name	{
+	//switch header.cipher_name	{
 
-	}
+	//}
 	
-	for (i=0; header.active_key_slots[i] != NULL; i++)	{
+	for (i=0; header.active_key_slots[i]; i++)	{
 		fseek(fp, header.active_key_slots[i]->key_offset, SEEK_SET);		
 		read_data(keys[i], sizeof(char), key_length, fp);
 	}
@@ -132,7 +136,7 @@ int main(int argc, char *argv[])	{
 
 	fp = fopen(drive, "rb");
 
-	if (fp != NULL && is_luks_volume(fp))	{
+	if (fp && is_luks_volume(fp))	{
 		struct phdr header = construct_header(fp); 
 	}
 	else	{
