@@ -117,15 +117,11 @@ void set_active_slots(struct phdr header, FILE *fp)	{
 }
 
 void find_keys(struct phdr header, unsigned char *keys, FILE *fp)	{
-	int i, key_length;
+	int i;
 
-	//switch header.cipher_name	{
-
-	//}
-	
 	for (i=0; header.active_key_slots[i]; i++)	{
 		fseek(fp, header.active_key_slots[i]->key_offset, SEEK_SET);		
-		read_data(keys[i], sizeof(char), key_length, fp);
+		read_data(keys[i], sizeof(char), header.key_bytes_length, fp); //assuming key length refers to key slots, not plaintext master key
 	}
 
 }
