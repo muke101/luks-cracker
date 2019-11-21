@@ -12,7 +12,7 @@ struct key_slot	{
 	unsigned char salt[SALT_LENGTH];
 	unsigned int key_offset[4];
 	unsigned int stripes[4];
-}
+};
 
 struct phdr	{
 	unsigned short version[2];
@@ -25,20 +25,19 @@ struct phdr	{
 	unsigned char mk_digest_salt[SALT_LENGTH];
 	unsigned int mk_digest_iter[4];
 	struct key_slot *active_key_slots[TOTAL_KEY_SLOTS];
-}
+};
 
 void read_data(void *arr, size_t size, int len, FILE *fp)	{
 	int i;
 
-	for (i=0, i < len; i++)	{
+	for (i=0; i < len; i++)	{
 		fread(&arr[i], size, 1, fp);
 	}
 }
 
 int is_luks_volume(FILE *fp)	{
-	unsigned char luks_magic[] = {"L","U","K","S",0xBA,0xBE};
+	unsigned char luks_magic[] = {'L','U','K','S',0xBA,0xBE};
 	unsigned char magic[6];
-	int i;
 
 	read_data(magic, sizeof(char), 6, fp);
 
@@ -50,7 +49,6 @@ int is_luks_volume(FILE *fp)	{
 }
 
 struct phdr construct_header(FILE *fp)	{
-	int i;
 
 	struct phdr header;
 
@@ -77,8 +75,9 @@ struct phdr construct_header(FILE *fp)	{
 
 }
 
-void add_slot(struct phdr header, struct key-slot slot, FILE *fp)	{
+void add_slot(struct phdr header, FILE *fp)	{
 
+	struct key_slot slot;
 	//todo: sort out struct passing
 	static int i = 0;
 
@@ -95,9 +94,9 @@ void add_slot(struct phdr header, struct key-slot slot, FILE *fp)	{
 
 }
 
-int is_active(int *active)	{
-	for
-}
+//int is_active(int *active)	{
+//	for
+//}
 
 void set_active_slots(struct phdr header, FILE *fp)	{
 	fseek(fp, FIRST_KEY_OFFSET, SEEK_SET);
@@ -107,7 +106,7 @@ void set_active_slots(struct phdr header, FILE *fp)	{
 		int active[4];
 		read_data(active, sizeof(int), 4, fp);
 
-		if (is_active(active))	{ //todo: implement
+		if (0)	{ //(is_active(active))	{ //todo: implement
 			add_slot(header,fp); 
 		}
 		else {
@@ -120,20 +119,21 @@ void find_keys(struct phdr header, unsigned char *keys, FILE *fp)	{
 	int i;
 
 	for (i=0; header.active_key_slots[i]; i++)	{
-		fseek(fp, header.active_key_slots[i]->key_offset, SEEK_SET);		
-		read_data(keys[i], sizeof(char), header.key_bytes_length, fp); //assuming key length refers to key slots, not plaintext master key
-	}
+		fseek(fp, (size_t)header.active_key_slots[i]->key_offset, SEEK_SET);		
+		read_data(keys[i], sizeof(char), header.key_bytes_length[0], fp); //assuming key length refers to key slots, not plaintext master key
+	}//key length needs to be made into one number
 
 }
 
 int main(int argc, char *argv[])	{
 	char *drive = argv+1;
 	FILE *fp;
+	struct phdr header;
 
 	fp = fopen(drive, "rb");
 
 	if (fp && is_luks_volume(fp))	{
-		struct phdr header = construct_header(fp); 
+		header = construct_header(fp); 
 	}
 	else	{
 		printf("not a valid luks volume\n");
@@ -144,7 +144,7 @@ int main(int argc, char *argv[])	{
 	unsigned char *keys[TOTAL_KEY_SLOTS];
 
 	set_active_slots(header, fp);
-	find_keys(header, keys);
+	find_keys(header, keys, fp);
 
 	fclose(fp);
 	return 0;
