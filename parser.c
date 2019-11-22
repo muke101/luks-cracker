@@ -16,9 +16,9 @@ struct key_slot	{
 
 struct phdr	{
 	unsigned short version[2];
-	char cipher_name[33];
-	char cipher_mode[33];
-	char hash_spec[33];
+	char cipher_name[32];
+	char cipher_mode[32];
+	char hash_spec[32];
 	unsigned int payload_offset[4];
 	unsigned int key_bytes_length[4];
 	unsigned char mk_digest[DIGEST_LENGTH];
@@ -55,13 +55,10 @@ struct phdr construct_header(FILE *fp)	{
 	read_data(header.version, sizeof(short), 2, fp);
 
 	read_data(header.cipher_name, sizeof(char), 32, fp);
-	*(header.cipher_name+1) = '\0';
 	
 	read_data(header.cipher_mode, sizeof(char), 32, fp);
-	*(header.cipher_mode+1) = '\0';
 
 	read_data(header.hash_spec, sizeof(char), 32, fp);
-	*(header.hash_spec+1) = '\0';
 
 	read_data(header.payload_offset, sizeof(int), 4, fp);
 
