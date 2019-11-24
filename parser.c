@@ -81,24 +81,29 @@ struct phdr construct_header(FILE *fp)	{
 }
 
 void add_slot(struct phdr header, FILE *fp)	{
-
-	struct key_slot slot;
-	//todo: sort out struct passing
+	
 	static int i = 0;
 
-	fread(&slot.iterations, sizeof(uint32_t), 1, fp);
-	slot.iterations = ntohl(slot.iterations);
+	struct key_slot *slot = (struct key_slot)malloc(sizeof(struct key_slot));
 
-	read_data(slot.salt, SALT_LENGTH, fp);
+	if (key_slot)	{
+		fread(&(slot->iterations), sizeof(uint32_t), 1, fp);
+		slot.iterations = ntohl(slot.iterations);
 
-	fread(&slot.key_offset, sizeof(uint32_t), 1, fp);
-	slot.key_offset = ntohl(slot.key_offset);
+		read_data(slot->salt, SALT_LENGTH, fp);
 
-	fread(&slot.stripes, sizeof(uint32_t), 1, fp);
-	slot.iterations = ntohl(slot.stripes);
+		fread(&(slot->key_offset), sizeof(uint32_t), 1, fp);
+		slot.key_offset = ntohl(slot.key_offset);
 
-	header.active_key_slots[i] = &slot;
-	i++;
+		fread(&(slot->stripes), sizeof(uint32_t), 1, fp);
+		slot.iterations = ntohl(slot.stripes);
+
+		header.active_key_slots[i] = slot;
+		i++;
+	}
+	else	{
+		printf("malloc error\n");
+	}
 
 }
 
