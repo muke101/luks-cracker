@@ -1,47 +1,52 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#define FIRST_KEY_OFFSET 208
+#include <arpa/inet.h>
+#include <stdint.h>
+#define LUKS_MAGIC 0x4c554b53babe
+#define KEY_ACTIVE 0xAC71F3
+#define MAGIC_LENGTH 6
+#define NAME_LENGTH 32
 #define KEY_SLOT_SIZE 48
 #define SALT_LENGTH 32
 #define DIGEST_LENGTH 20
 #define TOTAL_KEY_SLOTS 8
+#define FIRST_KEY_OFFSET 208
 
 struct key_slot	{
-	unsigned int iterations[4];
+	unsigned int iterations;
 	unsigned char salt[SALT_LENGTH];
-	unsigned int key_offset[4];
-	unsigned int stripes[4];
+	unsigned int key_offset;
+	unsigned int stripes;
 };
 
 struct phdr	{
-	unsigned short version[2];
-	char cipher_name[32];
-	char cipher_mode[32];
-	char hash_spec[32];
-	unsigned int payload_offset[4];
-	unsigned int key_bytes_length[4];
+	unsigned short version;
+	char cipher_name[NAME_LENGTH];
+	char cipher_mode[NAME_LENGTH];
+	char hash_spec[NAME_LENGTH];
+	unsigned int payload_offset;
+	unsigned int key_bytes_length;
 	unsigned char mk_digest[DIGEST_LENGTH];
 	unsigned char mk_digest_salt[SALT_LENGTH];
-	unsigned int mk_digest_iter[4];
+	unsigned int mk_digest_iter;
 	struct key_slot *active_key_slots[TOTAL_KEY_SLOTS];
 };
 
-void read_data(void *arr, size_t size, int len, FILE *fp)	{
+void read_data(unsigned char *arr, int len, FILE *fp)	{
 	int i;
 
 	for (i=0; i < len; i++)	{
-		fread(&arr[i], size, 1, fp);
+		fread(&arr[i], sizeof(char), 1, fp);
 	}
 }
 
 int is_luks_volume(FILE *fp)	{
-	unsigned char luks_magic[] = {'L','U','K','S',0xBA,0xBE};
-	unsigned char magic[6];
+	unsigned char magic[MAGIC_LENGTH];
 
-	read_data(magic, sizeof(char), 6, fp);
+	read_data(magic, MAGIC_LENGTH, fp);
 
-	if (memcmp(magic, luks_magic, 6) == 0){
+	if (memcmp(magic, LUKS_MAGIC, MAGIC_LENGTH) == 0){
 		return 1;
 	}
 	
@@ -52,21 +57,24 @@ struct phdr construct_header(FILE *fp)	{
 
 	struct phdr header;
 
-	read_data(header.version, sizeof(short), 2, fp);
+	fread(&header.version, sizeof(uint16_t), 1, fp);
+	header.version = ntohs(header.version);
 
-	read_data(header.cipher_name, sizeof(char), 32, fp);
+	read_data(header.cipher_name, NAME_LENGTH, fp);
 	
-	read_data(header.cipher_mode, sizeof(char), 32, fp);
+	read_data(header.cipher_mode, NAME_LENGTH, fp);
 
-	read_data(header.hash_spec, sizeof(char), 32, fp);
+	read_data(header.hash_spec, NAME_LENGTH, fp);
 
-	read_data(header.payload_offset, sizeof(int), 4, fp);
+	fread(&header.payload_offset, sizeof(uint32_t), 1, fp);
+	header.payload_offset = ntohl(header.patload_offset);
 
-	read_data(header.mk_digest, sizeof(char), DIGEST_LENGTH, fp);
+	read_data(header.mk_digest, DIGEST_LENGTH, fp);
 
-	read_data(header.mk_digest_salt, sizeof(char), SALT_LENGTH, fp);
+	read_data(header.mk_digest_salt, SALT_LENGTH, fp);
 
-	read_data(header.mk_digest_iter, sizeof(int), 4, fp);
+	fread(&header.mk_digest_iter, sizeof(uint32_t), 1, fp);
+	header.mk_digest_iter = ntohl(header.mk_digest_iter);
 	
 	return header;
 
@@ -78,32 +86,33 @@ void add_slot(struct phdr header, FILE *fp)	{
 	//todo: sort out struct passing
 	static int i = 0;
 
-	read_data(slot.iterations, sizeof(int), 4, fp);
+	fread(&slot.iterations, sizeof(uint32_t), 1, fp);
+	slot.iterations = ntohl(slot.iterations);
 
-	read_data(slot.salt, sizeof(char), SALT_LENGTH, fp);
+	read_data(slot.salt, SALT_LENGTH, fp);
 
-	read_data(slot.key_offset, sizeof(int), 4, fp);
+	fread(&slot.key_offset, sizeof(uint32_t), 1, fp);
+	slot.key_offset = ntohl(slot.key_offset);
 
-	read_data(slot.stripes, sizeof(int), 4, fp);
+	fread(&slot.stripes, sizeof(uint32_t), 1, fp);
+	slot.iterations = ntohl(slot.stripes);
 
 	header.active_key_slots[i] = &slot;
 	i++;
 
 }
 
-//int is_active(int *active)	{
-//	for
-//}
-
 void set_active_slots(struct phdr header, FILE *fp)	{
 	fseek(fp, FIRST_KEY_OFFSET, SEEK_SET);
 	int i;
 
 	for (i=0; i < 8; i++)	{
-		int active[4];
-		read_data(active, sizeof(int), 4, fp);
+		int active;
+		
+		fread(&active, sizeof(uint32_t), 1, fp);
+		active = ntohl(active);
 
-		if (0)	{ //(is_active(active))	{ //todo: implement
+		if (active == KEY_ACTIVE)	{
 			add_slot(header,fp); 
 		}
 		else {
@@ -117,8 +126,8 @@ void find_keys(struct phdr header, unsigned char *keys, FILE *fp)	{
 
 	for (i=0; header.active_key_slots[i]; i++)	{
 		fseek(fp, (size_t)header.active_key_slots[i]->key_offset, SEEK_SET);		
-		read_data(keys[i], sizeof(char), header.key_bytes_length[0], fp); //assuming key length refers to key slots, not plaintext master key
-	}//key length needs to be made into one number
+		read_data(keys[i], header.key_bytes_length, fp); 
+	}
 
 }
 
