@@ -43,10 +43,11 @@ void read_data(unsigned char *arr, int len, FILE *fp)	{
 
 int is_luks_volume(FILE *fp)	{
 	unsigned char magic[MAGIC_LENGTH];
+	unsigned char luks_magic[] = {'L','U','K','S',0xBA,0xBE};
 
 	read_data(magic, MAGIC_LENGTH, fp);
 
-	if (memcmp(magic, LUKS_MAGIC, MAGIC_LENGTH) == 0){
+	if (memcmp(magic, luks_magic, MAGIC_LENGTH) == 0){
 		return 1;
 	}
 	
@@ -67,7 +68,7 @@ struct phdr construct_header(FILE *fp)	{
 	read_data(header.hash_spec, NAME_LENGTH, fp);
 
 	fread(&header.payload_offset, sizeof(uint32_t), 1, fp);
-	header.payload_offset = ntohl(header.patload_offset);
+	header.payload_offset = ntohl(header.payload_offset);
 
 	read_data(header.mk_digest, DIGEST_LENGTH, fp);
 
@@ -84,19 +85,19 @@ void add_slot(struct phdr header, FILE *fp)	{
 	
 	static int i = 0;
 
-	struct key_slot *slot = (struct key_slot)malloc(sizeof(struct key_slot));
+	struct key_slot *slot = malloc(sizeof(struct key_slot));
 
-	if (key_slot)	{
+	if (slot)	{
 		fread(&(slot->iterations), sizeof(uint32_t), 1, fp);
-		slot.iterations = ntohl(slot.iterations);
+		slot->iterations = ntohl(slot->iterations);
 
 		read_data(slot->salt, SALT_LENGTH, fp);
 
 		fread(&(slot->key_offset), sizeof(uint32_t), 1, fp);
-		slot.key_offset = ntohl(slot.key_offset);
+		slot->key_offset = ntohl(slot->key_offset);
 
 		fread(&(slot->stripes), sizeof(uint32_t), 1, fp);
-		slot.iterations = ntohl(slot.stripes);
+		slot->iterations = ntohl(slot->stripes);
 
 		header.active_key_slots[i] = slot;
 		i++;
@@ -126,18 +127,18 @@ void set_active_slots(struct phdr header, FILE *fp)	{
 	}
 }
 
-void find_keys(struct phdr header, unsigned char *keys, FILE *fp)	{
+void find_keys(struct phdr header, unsigned char **keys, FILE *fp)	{
 	int i;
 
 	for (i=0; header.active_key_slots[i]; i++)	{
 		fseek(fp, (size_t)header.active_key_slots[i]->key_offset, SEEK_SET);		
 		read_data(keys[i], header.key_bytes_length, fp); 
 	}
-
 }
 
 int main(int argc, char *argv[])	{
-	char *drive = argv+1;
+	char *drive = *++argv;
+	printf("%s\n", drive);
 	FILE *fp;
 	struct phdr header;
 
