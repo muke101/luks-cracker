@@ -26,7 +26,7 @@ struct phdr	{
 	char cipher_mode[NAME_LENGTH];
 	char hash_spec[NAME_LENGTH];
 	unsigned int payload_offset;
-	unsigned int key_bytes_length;
+	unsigned int key_length;
 	unsigned char mk_digest[DIGEST_LENGTH];
 	unsigned char mk_digest_salt[SALT_LENGTH];
 	unsigned int mk_digest_iter;
@@ -69,6 +69,9 @@ struct phdr construct_header(FILE *fp)	{
 
 	fread(&header.payload_offset, sizeof(uint32_t), 1, fp);
 	header.payload_offset = ntohl(header.payload_offset);
+
+	fread(&header.key_length, sizeof(uint32_t), 1, fp);
+	header.key_length = ntohl(header.key_length);
 
 	read_data(header.mk_digest, DIGEST_LENGTH, fp);
 
@@ -127,18 +130,19 @@ void set_active_slots(struct phdr header, FILE *fp)	{
 	}
 }
 
-void find_keys(struct phdr header, unsigned char **keys, FILE *fp)	{
+int find_keys(struct phdr header, unsigned char **keys, FILE *fp)	{
 	int i;
 
 	for (i=0; header.active_key_slots[i]; i++)	{
 		fseek(fp, (size_t)header.active_key_slots[i]->key_offset, SEEK_SET);		
-		read_data(keys[i], header.key_bytes_length, fp); 
+		read_data(keys[i], header.key_length, fp); 
 	}
+
+	return i;
 }
 
 int main(int argc, char *argv[])	{
 	char *drive = *++argv;
-	printf("%s\n", drive);
 	FILE *fp;
 	struct phdr header;
 
@@ -156,7 +160,15 @@ int main(int argc, char *argv[])	{
 	unsigned char *keys[TOTAL_KEY_SLOTS];
 
 	set_active_slots(header, fp);
-	find_keys(header, keys, fp);
+	int number_of_keys = find_keys(header, keys, fp);
+
+	int i, j;
+	for (i=0; i < number_of_keys; i++)	{
+		for (j=0; j < header.key_length; j++)	{
+			printf("%c", keys[i][j]);
+		}
+	}
+	printf("\n");
 
 	fclose(fp);
 	return 0;
