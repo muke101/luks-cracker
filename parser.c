@@ -22,9 +22,9 @@ struct key_slot	{
 
 struct phdr	{
 	unsigned short version;
-	char cipher_name[NAME_LENGTH];
-	char cipher_mode[NAME_LENGTH];
-	char hash_spec[NAME_LENGTH];
+	unsigned char cipher_name[NAME_LENGTH];
+	unsigned char cipher_mode[NAME_LENGTH];
+	unsigned char hash_spec[NAME_LENGTH];
 	unsigned int payload_offset;
 	unsigned int key_length;
 	unsigned char mk_digest[DIGEST_LENGTH];
@@ -33,8 +33,8 @@ struct phdr	{
 	struct key_slot *active_key_slots[TOTAL_KEY_SLOTS];
 };
 
-void read_data(unsigned char *arr, int len, FILE *fp)	{
-	int i;
+void read_data(unsigned char *arr, unsigned int len, FILE *fp)	{
+	unsigned i;
 
 	for (i=0; i < len; i++)	{
 		fread(&arr[i], sizeof(char), 1, fp);
@@ -54,37 +54,33 @@ int is_luks_volume(FILE *fp)	{
 	return 0;
 }
 
-struct phdr construct_header(FILE *fp)	{
+void construct_header(struct phdr *header, FILE *fp)	{
 
-	struct phdr header;
+	fread(&header->version, sizeof(uint16_t), 1, fp);
+	header->version = ntohs(header->version);
 
-	fread(&header.version, sizeof(uint16_t), 1, fp);
-	header.version = ntohs(header.version);
-
-	read_data(header.cipher_name, NAME_LENGTH, fp);
+	read_data(header->cipher_name, NAME_LENGTH, fp);
 	
-	read_data(header.cipher_mode, NAME_LENGTH, fp);
+	read_data(header->cipher_mode, NAME_LENGTH, fp);
 
-	read_data(header.hash_spec, NAME_LENGTH, fp);
+	read_data(header->hash_spec, NAME_LENGTH, fp);
 
-	fread(&header.payload_offset, sizeof(uint32_t), 1, fp);
-	header.payload_offset = ntohl(header.payload_offset);
+	fread(&header->payload_offset, sizeof(uint32_t), 1, fp);
+	header->payload_offset = ntohl(header->payload_offset);
 
-	fread(&header.key_length, sizeof(uint32_t), 1, fp);
-	header.key_length = ntohl(header.key_length);
+	fread(&header->key_length, sizeof(uint32_t), 1, fp);
+	header->key_length = ntohl(header->key_length);
 
-	read_data(header.mk_digest, DIGEST_LENGTH, fp);
+	read_data(header->mk_digest, DIGEST_LENGTH, fp);
 
-	read_data(header.mk_digest_salt, SALT_LENGTH, fp);
+	read_data(header->mk_digest_salt, SALT_LENGTH, fp);
 
-	fread(&header.mk_digest_iter, sizeof(uint32_t), 1, fp);
-	header.mk_digest_iter = ntohl(header.mk_digest_iter);
-	
-	return header;
+	fread(&header->mk_digest_iter, sizeof(uint32_t), 1, fp);
+	header->mk_digest_iter = ntohl(header->mk_digest_iter);
 
 }
 
-void add_slot(struct phdr header, FILE *fp)	{
+void add_slot(struct phdr *header, FILE *fp)	{
 	
 	static int i = 0;
 
@@ -102,7 +98,7 @@ void add_slot(struct phdr header, FILE *fp)	{
 		fread(&(slot->stripes), sizeof(uint32_t), 1, fp);
 		slot->iterations = ntohl(slot->stripes);
 
-		header.active_key_slots[i] = slot;
+		header->active_key_slots[i] = slot;
 		i++;
 	}
 	else	{
@@ -111,7 +107,7 @@ void add_slot(struct phdr header, FILE *fp)	{
 
 }
 
-void set_active_slots(struct phdr header, FILE *fp)	{
+void set_active_slots(struct phdr *header, FILE *fp)	{
 	fseek(fp, FIRST_KEY_OFFSET, SEEK_SET);
 	int i;
 
@@ -130,7 +126,7 @@ void set_active_slots(struct phdr header, FILE *fp)	{
 	}
 }
 
-int find_keys(struct phdr header, unsigned char **keys, FILE *fp)	{
+int find_keys(struct phdr header, unsigned char keys[8][256], FILE *fp)	{
 	int i;
 
 	for (i=0; header.active_key_slots[i]; i++)	{
@@ -149,7 +145,7 @@ int main(int argc, char *argv[])	{
 	fp = fopen(drive, "rb");
 
 	if (fp && is_luks_volume(fp))	{
-		header = construct_header(fp); 
+		construct_header(&header, fp); 
 	}
 	else	{
 		printf("not a valid luks volume\n");
@@ -157,12 +153,13 @@ int main(int argc, char *argv[])	{
 		return 1;
 	}
 
-	unsigned char *keys[TOTAL_KEY_SLOTS];
+	unsigned char keys[TOTAL_KEY_SLOTS][header.key_length];
 
-	set_active_slots(header, fp);
+	set_active_slots(&header, fp);
 	int number_of_keys = find_keys(header, keys, fp);
 
-	int i, j;
+	int i;
+	unsigned j;
 	for (i=0; i < number_of_keys; i++)	{
 		for (j=0; j < header.key_length; j++)	{
 			printf("%c", keys[i][j]);
