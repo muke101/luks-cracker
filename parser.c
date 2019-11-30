@@ -110,17 +110,17 @@ void add_slot(struct phdr *header, FILE *fp)	{
 void set_active_slots(struct phdr *header, FILE *fp)	{
 	fseek(fp, FIRST_KEY_OFFSET, SEEK_SET);
 	int i;
+	unsigned active;
 
 	for (i=0; i < 8; i++)	{
-		int active;
-		
+
 		fread(&active, sizeof(uint32_t), 1, fp);
 		active = ntohl(active);
 
 		if (active == KEY_ACTIVE)	{
 			add_slot(header,fp); 
 		}
-		else {
+		else { //calling add_slot will parse the rest of the key slot and leave fp at the beginning of the next slot
 			fseek(fp, KEY_SLOT_SIZE-4, SEEK_CUR);
 		}
 	}
@@ -141,6 +141,7 @@ int main(int argc, char *argv[])	{
 	char *drive = *++argv;
 	FILE *fp;
 	struct phdr header;
+	memset(header.active_key_slots, 0, TOTAL_KEY_SLOTS); 
 
 	fp = fopen(drive, "rb");
 
@@ -149,12 +150,12 @@ int main(int argc, char *argv[])	{
 	}
 	else	{
 		printf("not a valid luks volume\n");
-		fclose(fp);
 		return 1;
 	}
 
-	unsigned char keys[TOTAL_KEY_SLOTS][header.key_length];
+	unsigned char keys[TOTAL_KEY_SLOTS][256];
 
+	printf("%p\n%p\n", header.active_key_slots[1], header.active_key_slots[5]);
 	set_active_slots(&header, fp);
 	int number_of_keys = find_keys(header, keys, fp);
 
@@ -164,8 +165,8 @@ int main(int argc, char *argv[])	{
 		for (j=0; j < header.key_length; j++)	{
 			printf("%c", keys[i][j]);
 		}
+		printf("\n");
 	}
-	printf("\n");
 
 	fclose(fp);
 	return 0;
