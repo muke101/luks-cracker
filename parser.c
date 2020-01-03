@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <stdint.h>
+#include <openssl/sha.h>
 #define LUKS_MAGIC 0x4c554b53babe
 #define KEY_ACTIVE 0xAC71F3
 #define MAGIC_LENGTH 6
@@ -12,6 +13,7 @@
 #define DIGEST_LENGTH 20
 #define TOTAL_KEY_SLOTS 8
 #define FIRST_KEY_OFFSET 208
+#define SECTOR_SIZE 512
 
 struct key_slot	{
 	unsigned int iterations;
@@ -96,7 +98,7 @@ void add_slot(struct phdr *header, FILE *fp)	{
 		slot->key_offset = ntohl(slot->key_offset);
 
 		fread(&(slot->stripes), sizeof(uint32_t), 1, fp);
-		slot->iterations = ntohl(slot->stripes);
+		slot->stripes = ntohl(slot->stripes);
 
 		header->active_key_slots[i] = slot;
 		i++;
@@ -112,12 +114,12 @@ void set_active_slots(struct phdr *header, FILE *fp)	{
 	int i;
 	unsigned active;
 
-	for (i=0; i < 8; i++)	{
+	for (i=0; i < TOTAL_KEY_SLOTS; i++)	{
 
 		fread(&active, sizeof(uint32_t), 1, fp);
 		active = ntohl(active);
 
-		if (active == KEY_ACTIVE)	{
+		if (active == KEY_ACTIVE)	{ //turns out I don't understand how file pointers work but I *think* this is fine??
 			add_slot(header,fp); 
 		}
 		else { //calling add_slot will parse the rest of the key slot and leave fp at the beginning of the next slot
@@ -126,12 +128,29 @@ void set_active_slots(struct phdr *header, FILE *fp)	{
 	}
 }
 
-int find_keys(struct phdr header, unsigned char keys[8][256], FILE *fp)	{
+void af_merge(unsigned char *split_key, unsigned length, unsigned *(H)(unsigned))	{ //find specification for this as well as H1, H2 in LUKS documentation
+		int i, d0, d1;
+
+		d0 = 0;
+		for (i=0; i < length-1; i++)	{
+			d1 = H(d0 ^ split_key[i]);
+			d0 = d1;
+		}
+
+		return d1 ^ split_key[++i];	
+}
+
+unsigned H1(unsigned d)	{
+		
+}
+
+int find_keys(struct phdr header, unsigned char keys[8][64*4000], FILE *fp)	{ //FIXME: array length
 	int i;
 
 	for (i=0; header.active_key_slots[i]; i++)	{
-		fseek(fp, (size_t)header.active_key_slots[i]->key_offset, SEEK_SET);		
-		read_data(keys[i], header.key_length, fp); 
+		unsigned offset = header.active_key_slots[i]->key_offset, stripes = header.active_key_slots[i]->stripes, length = header.key_length;
+		fseek(fp, (size_t)offset*SECTOR_SIZE, SEEK_SET);		
+		read_data(keys[i], length*stripes, fp); 
 	}
 
 	return i;
@@ -141,7 +160,7 @@ int main(int argc, char *argv[])	{
 	char *drive = *++argv;
 	FILE *fp;
 	struct phdr header;
-	memset(header.active_key_slots, 0, TOTAL_KEY_SLOTS); 
+	memset(header.active_key_slots, 0, TOTAL_KEY_SLOTS*sizeof(struct key_slot *)); 
 
 	fp = fopen(drive, "rb");
 
@@ -153,17 +172,16 @@ int main(int argc, char *argv[])	{
 		return 1;
 	}
 
-	unsigned char keys[TOTAL_KEY_SLOTS][256];
+	unsigned char keys[TOTAL_KEY_SLOTS][64*4000];
 
-	printf("%p\n%p\n", header.active_key_slots[1], header.active_key_slots[5]);
 	set_active_slots(&header, fp);
 	int number_of_keys = find_keys(header, keys, fp);
 
 	int i;
 	unsigned j;
 	for (i=0; i < number_of_keys; i++)	{
-		for (j=0; j < header.key_length; j++)	{
-			printf("%c", keys[i][j]);
+		for (j=0; j < header.key_length*4000; j++)	{
+			//printf("%c", keys[i][j]);
 		}
 		printf("\n");
 	}
