@@ -128,23 +128,39 @@ void set_active_slots(struct phdr *header, FILE *fp)	{
 	}
 }
 
-void af_merge(unsigned char *split_key, unsigned length, unsigned *(H)(unsigned))	{ //find specification for this as well as H1, H2 in LUKS documentation
-		int i, d0, d1;
+unsigned char *af_merge(unsigned char *split_key, size_t key_length, unsigned stripes, unsigned *(H)(unsigned))	{ //find specification for this as well as H1, H2 in LUKS documentation
+		int i;
+		unsigned char *d = calloc(key_length, sizeof(char));
 
-		d0 = 0;
-		for (i=0; i < length-1; i++)	{
-			d1 = H(d0 ^ split_key[i]);
-			d0 = d1;
+		for (i=0; i < stripes-1; i++)	{
+			xor(d, split_key[i], key_length); //TODO:split_key[i] should point to an array of key length, d should be 
+			H(d);
 		}
 
-		return d1 ^ split_key[++i];	
+		return xor(d, split_key[i], key_length);
 }
 
-unsigned H1(unsigned d)	{
-		
+void xor(unsigned char *a, unsigned char *b, size_t n)	{ //for some reason cryptsetup does it b^a?
+	size_t i;
+	unsigned char tmp;
+
+	for (i=0; i < n; i++)	{
+		tmp = a[i]; //fairly sure a[i] = a[i] ^ b[i] would be undefined behavior
+		a[i] = tmp ^ b[i];
+	}
 }
 
-int find_keys(struct phdr header, unsigned char keys[8][64*4000], FILE *fp)	{ //FIXME: array length
+unsigned H1(unsigned d, size_t n)	{
+	size_t i;
+
+	unsigned digest_size = find digest size
+	
+	for (i=0; i < n; i++)	{
+
+	}
+}
+
+int find_keys(struct phdr header, unsigned char keys[8][64][4000], FILE *fp)	{ //FIXME: array length
 	int i;
 
 	for (i=0; header.active_key_slots[i]; i++)	{
