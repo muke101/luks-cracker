@@ -14,6 +14,7 @@
 #define TOTAL_KEY_SLOTS 8
 #define FIRST_KEY_OFFSET 208
 #define SECTOR_SIZE 512
+#define SHA1_DIGEST_SIZE 160
 
 struct key_slot	{
 	unsigned int iterations;
@@ -128,16 +129,56 @@ void set_active_slots(struct phdr *header, FILE *fp)	{
 	}
 }
 
-unsigned char *af_merge(unsigned char *split_key, size_t key_length, unsigned stripes, unsigned *(H)(unsigned))	{ //find specification for this as well as H1, H2 in LUKS documentation
-		int i;
-		unsigned char *d = calloc(key_length, sizeof(char));
+void hash(unsigned i, unsigned char *di, unsigned char *pi, size_t len)	{
+	i = htonl(i);
+	unsigned i_arr[sizeof(uint32_t)];
+	memcpy(i_arr, &i, sizeof(uint32_t));
+	SHA_CTX ctx;
+	SHA1_Init(&ctx);
+	SHA1_Update(&ctx, i_arr, sizeof(uint32_t));
+	SHA1_Update(&ctx, di, len);
+	SHA1_Final(pi, &ctx);
+}                                                                        
 
-		for (i=0; i < stripes-1; i++)	{
-			xor(d, split_key[i], key_length); //TODO:split_key[i] should point to an array of key length, d should be 
-			H(d);
-		}
+void H1(unsigned char *d, size_t n)	{
+	unsigned i;
+	size_t digest_size = SHA1_DIGEST_SIZE; //not making this portable for non-default hash functions for now
+	unsigned char di[digest_size];
+	unsigned char pi[digest_size];
+	int blocks = n / digest_size;
+	int crop = n % digest_size;
+	
+	for (i=0; i < blocks; i++)	{
+		memcpy(di, d+(i*digest_size), digest_size);
+		hash(i, di, pi, digest_size);
+		memcpy(d+(i*digest_size), pi, digest_size);
+	}
 
-		return xor(d, split_key[i], key_length);
+	if (crop)	{
+		--i;
+		memcpy(di, d+(i*digest_size), crop);
+		hash(i+1, di, pi, crop);
+		memcpy(d+(i*digest_size), pi, crop);
+	}
+}
+
+void H2(unsigned char *d, size_t n)	{
+	unsigned i;
+	size_t digest_size = SHA1_DIGEST_SIZE;
+	unsigned char pi[digest_size];
+	int blocks = n / digest_size;
+	int crop = n % digest_size;
+
+	for (i=0; i > blocks; i++)	{
+		hash(i, d, pi, n);
+		memcpy(d+(i*digest_size), pi, digest_size);
+	}
+
+	if (crop)	{
+		--i;
+		hash(i+1, d, pi, n);
+		memcpy(d+(i*digest_size), pi, crop);
+	}
 }
 
 void xor(unsigned char *a, unsigned char *b, size_t n)	{ //for some reason cryptsetup does it b^a?
@@ -150,22 +191,27 @@ void xor(unsigned char *a, unsigned char *b, size_t n)	{ //for some reason crypt
 	}
 }
 
-unsigned H1(unsigned d, size_t n)	{
-	size_t i;
+unsigned char *af_merge(unsigned char *split_key, size_t key_length, unsigned stripes, void (*H)(unsigned char *, size_t))	{ //find specification for this as well as H1, H2 in LUKS documentation
+		int i;
+		unsigned char *d = calloc(key_length, sizeof(char));
 
-	unsigned digest_size = find digest size
-	
-	for (i=0; i < n; i++)	{
+		for (i=0; i < stripes-1; i++)	{
+			xor(d, split_key+(i*key_length), key_length); //split_key contains key_length many sets of stripes number of bytes, each corrosponding to 's1,s2..sn'
+			H(d, key_length*8);
+		}
 
-	}
+		xor(d, split_key+(i*key_length), key_length);
+		return d;
 }
 
-int find_keys(struct phdr header, unsigned char keys[8][64][4000], FILE *fp)	{ //FIXME: array length
+int find_keys(struct phdr header, unsigned char keys[8][64*4000], FILE *fp)	{ //FIXME: array length
 	int i;
 
 	for (i=0; header.active_key_slots[i]; i++)	{
-		unsigned offset = header.active_key_slots[i]->key_offset, stripes = header.active_key_slots[i]->stripes, length = header.key_length;
-		fseek(fp, (size_t)offset*SECTOR_SIZE, SEEK_SET);		
+		unsigned offset = header.active_key_slots[i]->key_offset;
+		unsigned stripes = header.active_key_slots[i]->stripes;
+		unsigned length = header.key_length;
+		fseek(fp, (size_t)offset*SECTOR_SIZE, SEEK_SET);	
 		read_data(keys[i], length*stripes, fp); 
 	}
 
@@ -195,11 +241,15 @@ int main(int argc, char *argv[])	{
 
 	int i;
 	unsigned j;
+	unsigned char *key;
 	for (i=0; i < number_of_keys; i++)	{
-		for (j=0; j < header.key_length*4000; j++)	{
-			//printf("%c", keys[i][j]);
+		key = af_merge(keys[i], (size_t)header.key_length, header.active_key_slots[i]->stripes, header.version == 1 ? H1:H2); 
+		for (j=0; j < header.key_length; i++)	{
+			printf("%c", key[j]);
 		}
 		printf("\n");
+		free(header.active_key_slots[i]);
+		free(key);
 	}
 
 	fclose(fp);
