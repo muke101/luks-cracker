@@ -4,6 +4,8 @@
 #include <arpa/inet.h>
 #include <stdint.h>
 #include <openssl/sha.h>
+#include <openssl/aes.h>
+#include <openssl/evp.h>
 #define LUKS_MAGIC 0x4c554b53babe
 #define KEY_ACTIVE 0xAC71F3
 #define MAGIC_LENGTH 6
@@ -142,7 +144,7 @@ void hash(unsigned i, unsigned char *di, unsigned char *pi, size_t len)	{
 
 void H1(unsigned char *d, size_t n)	{
 	unsigned i;
-	size_t digest_size = SHA1_DIGEST_SIZE; //not making this portable for non-default hash functions for now
+	size_t digest_size = SHA1_DIGEST_SIZE/8; //not making this portable for non-default hash functions for now
 	unsigned char di[digest_size];
 	unsigned char pi[digest_size];
 	int blocks = n / digest_size;
@@ -164,7 +166,7 @@ void H1(unsigned char *d, size_t n)	{
 
 void H2(unsigned char *d, size_t n)	{
 	unsigned i;
-	size_t digest_size = SHA1_DIGEST_SIZE;
+	size_t digest_size = SHA1_DIGEST_SIZE/8;
 	unsigned char pi[digest_size];
 	int blocks = n / digest_size;
 	int crop = n % digest_size;
@@ -197,7 +199,7 @@ unsigned char *af_merge(unsigned char *split_key, size_t key_length, unsigned st
 
 		for (i=0; i < stripes-1; i++)	{
 			xor(d, split_key+(i*key_length), key_length); //split_key contains key_length many sets of stripes number of bytes, each corrosponding to 's1,s2..sn'
-			H(d, key_length*8);
+			H(d, key_length);
 		}
 
 		xor(d, split_key+(i*key_length), key_length);
@@ -244,7 +246,7 @@ int main(int argc, char *argv[])	{
 	unsigned char *key;
 	for (i=0; i < number_of_keys; i++)	{
 		key = af_merge(keys[i], (size_t)header.key_length, header.active_key_slots[i]->stripes, header.version == 1 ? H1:H2); 
-		for (j=0; j < header.key_length; i++)	{
+		for (j=0; j < header.key_length; j++)	{
 			printf("%c", key[j]);
 		}
 		printf("\n");
