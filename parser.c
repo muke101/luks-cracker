@@ -6,6 +6,8 @@
 #include <openssl/sha.h>
 #include <openssl/aes.h>
 #include <openssl/evp.h>
+#include <openssl/err.h>
+#include <openssl/crypto.h>
 #define LUKS_MAGIC 0x4c554b53babe
 #define KEY_ACTIVE 0xAC71F3
 #define MAGIC_LENGTH 6
@@ -16,7 +18,7 @@
 #define TOTAL_KEY_SLOTS 8
 #define FIRST_KEY_OFFSET 208
 #define SECTOR_SIZE 512
-#define SHA1_DIGEST_SIZE 160
+#define SHA256_DIGEST_SIZE 256
 
 struct key_slot	{
 	unsigned int iterations;
@@ -135,16 +137,16 @@ void hash(unsigned i, unsigned char *di, unsigned char *pi, size_t len)	{
 	i = htonl(i);
 	unsigned i_arr[sizeof(uint32_t)];
 	memcpy(i_arr, &i, sizeof(uint32_t));
-	SHA_CTX ctx;
-	SHA1_Init(&ctx);
-	SHA1_Update(&ctx, i_arr, sizeof(uint32_t));
-	SHA1_Update(&ctx, di, len);
-	SHA1_Final(pi, &ctx);
+	SHA256_CTX ctx;
+	SHA256_Init(&ctx);
+	SHA256_Update(&ctx, i_arr, sizeof(uint32_t));
+	SHA256_Update(&ctx, di, len);
+	SHA256_Final(pi, &ctx);
 }                                                                        
 
 void H1(unsigned char *d, size_t n)	{
 	unsigned i;
-	size_t digest_size = SHA1_DIGEST_SIZE/8; //not making this portable for non-default hash functions for now
+	size_t digest_size = SHA256_DIGEST_SIZE/8; //not making this portable for non-default hash functions for now
 	unsigned char di[digest_size];
 	unsigned char pi[digest_size];
 	int blocks = n / digest_size;
@@ -166,7 +168,7 @@ void H1(unsigned char *d, size_t n)	{
 
 void H2(unsigned char *d, size_t n)	{
 	unsigned i;
-	size_t digest_size = SHA1_DIGEST_SIZE/8;
+	size_t digest_size = SHA256_DIGEST_SIZE/8;
 	unsigned char pi[digest_size];
 	int blocks = n / digest_size;
 	int crop = n % digest_size;
@@ -204,6 +206,30 @@ unsigned char *af_merge(unsigned char *split_key, size_t key_length, unsigned st
 
 		xor(d, split_key+(i*key_length), key_length);
 		return d;
+}
+
+void test_key(unsigned char *encKey, const char *pass, struct phdr header)	{
+	unsigned char *key = malloc(header.key_length);
+	unsigned char *iv = calloc(32, sizeof(char));
+	int len;
+
+	//wait are you decryting the input or output of AFmerge?
+
+	unsigned char digest[32];
+	PKCS5_PBKDF2_HMAC(pass, strlen(pass), header.active_key_slots[0]->salt, SALT_LENGTH, header.active_key_slots[0]->iterations, EVP_sha256(), 32, digest);
+
+	EVP_CIPHER_CTX *ctx;
+	EVP_DecryptInit_ex(ctx, EVP_aes_256_xts(), NULL, digest, iv);
+	EVP_DecryptUpdate(ctx, key, &len, encKey, header.key_length);
+	EVP_DecryptFinal_ex(ctx, key + len, &len);
+	EVP_CIPHER_CTX_free(ctx);
+
+	PKCS5_PBKDF2_HMAC(key, header.key_length, header.mk_digest_salt, SALT_LENGTH, header.mk_digest_iter, EVP_sha256(), 32, digest);
+
+	int t = memcmp(digest, header.mk_digest, 32);
+	if (t == 0)	{
+		printf("match!");
+	}
 }
 
 int find_keys(struct phdr header, unsigned char keys[8][64*4000], FILE *fp)	{ //FIXME: array length
@@ -246,12 +272,7 @@ int main(int argc, char *argv[])	{
 	unsigned char *key;
 	for (i=0; i < number_of_keys; i++)	{
 		key = af_merge(keys[i], (size_t)header.key_length, header.active_key_slots[i]->stripes, header.version == 1 ? H1:H2); 
-		for (j=0; j < header.key_length; j++)	{
-			printf("%c", key[j]);
-		}
-		printf("\n");
-		free(header.active_key_slots[i]);
-		free(key);
+		test_key(key, "password", header);
 	}
 
 	fclose(fp);
