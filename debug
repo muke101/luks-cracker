@@ -1,0 +1,6 @@
+is the file pointer working correctly
+is the xorblock function correct
+are you reading the whole key properly 
+H1/2 could probably do with some checking over
+converting everything from big to little endian?
+could it be the 64 byte key? try with a different AES mode and see if that fixes anything

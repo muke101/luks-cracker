@@ -1,1 +1,1 @@
-dd if=/dev/sde skip=512 count=200000 iflag=skip_bytes,count_bytes of=luksheader
+dd if=/dev/sde skip=512 count=2097153 iflag=skip_bytes,count_bytes of=luksheader
