@@ -185,13 +185,11 @@ void H2(unsigned char *d, size_t n)	{
 	}
 }
 
-void xor(unsigned char *a, unsigned char *b, size_t n)	{ //for some reason cryptsetup does it b^a?
+void xor(unsigned char *a, unsigned char *b, unsigned char *dst, size_t n)	{ //for some reason cryptsetup does it b^a?
 	size_t i;
-	unsigned char tmp;
 
 	for (i=0; i < n; i++)	{
-		tmp = a[i]; //fairly sure a[i] = a[i] ^ b[i] would be undefined behavior
-		a[i] = tmp ^ b[i];
+		dst[i] = a[i] ^ b[i];
 	}
 }
 
@@ -200,34 +198,38 @@ unsigned char *af_merge(unsigned char *split_key, size_t key_length, unsigned st
 		unsigned char *d = calloc(key_length, sizeof(char));
 
 		for (i=0; i < stripes-1; i++)	{
-			xor(d, split_key+(i*key_length), key_length); //split_key contains key_length many sets of stripes number of bytes, each corrosponding to 's1,s2..sn'
+			xor(split_key+(i*key_length), d, d, key_length); //split_key contains key_length many sets of stripes number of bytes, each corrosponding to 's1,s2..sn'
 			H(d, key_length);
 		}
 
-		xor(d, split_key+(i*key_length), key_length);
+		xor(split_key+(i*key_length), d, d, key_length);
 		return d;
 }
 
-void test_key(unsigned char *encKey, const char *pass, struct phdr header)	{
-	unsigned char *key = malloc(header.key_length);
-	unsigned char *iv = calloc(32, sizeof(char));
+void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
+	int split_length = header.key_length*header.active_key_slots[0]->stripes;
+	unsigned char split_key[split_length];
+	const unsigned char *key; 
+	unsigned char *iv = calloc(header.key_length, sizeof(char));
+	unsigned char digest[header.key_length];
 	int len;
 
-	//wait are you decryting the input or output of AFmerge?
+	PKCS5_PBKDF2_HMAC(pass, strlen(pass), header.active_key_slots[0]->salt, SALT_LENGTH, header.active_key_slots[0]->iterations, EVP_sha256(), header.key_length, digest); 
 
-	unsigned char digest[32];
-	PKCS5_PBKDF2_HMAC(pass, strlen(pass), header.active_key_slots[0]->salt, SALT_LENGTH, header.active_key_slots[0]->iterations, EVP_sha256(), 32, digest);
+	iv[0] = header.active_key_slots[0]->key_offset;
 
-	EVP_CIPHER_CTX *ctx;
+	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 	EVP_DecryptInit_ex(ctx, EVP_aes_256_xts(), NULL, digest, iv);
-	EVP_DecryptUpdate(ctx, key, &len, encKey, header.key_length);
-	EVP_DecryptFinal_ex(ctx, key + len, &len);
+	EVP_DecryptUpdate(ctx, split_key, &len, enc_key, split_length);
+	EVP_DecryptFinal_ex(ctx, split_key + len, &len);
 	EVP_CIPHER_CTX_free(ctx);
 
-	PKCS5_PBKDF2_HMAC(key, header.key_length, header.mk_digest_salt, SALT_LENGTH, header.mk_digest_iter, EVP_sha256(), 32, digest);
+	key = af_merge(enc_key, (size_t)header.key_length, header.active_key_slots[0]->stripes, header.version == 1 ? H1:H2); 
 
-	int t = memcmp(digest, header.mk_digest, 32);
-	if (t == 0)	{
+	PKCS5_PBKDF2_HMAC(key, header.key_length, header.mk_digest_salt, SALT_LENGTH, header.mk_digest_iter, EVP_sha256(), 20, digest);
+
+	
+	if (memcmp(digest, header.mk_digest, 20) == 0)	{
 		printf("match!");
 	}
 }
@@ -267,12 +269,12 @@ int main(int argc, char *argv[])	{
 	set_active_slots(&header, fp);
 	int number_of_keys = find_keys(header, keys, fp);
 
+	printf("%s\n",header.cipher_mode);
+
 	int i;
-	unsigned j;
 	unsigned char *key;
 	for (i=0; i < number_of_keys; i++)	{
-		key = af_merge(keys[i], (size_t)header.key_length, header.active_key_slots[i]->stripes, header.version == 1 ? H1:H2); 
-		test_key(key, "password", header);
+		test_key(keys[i], "password", header);
 	}
 
 	fclose(fp);
