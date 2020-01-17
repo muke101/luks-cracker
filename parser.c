@@ -210,13 +210,14 @@ void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
 	int split_length = header.key_length*header.active_key_slots[0]->stripes;
 	unsigned char split_key[split_length];
 	const unsigned char *key; 
-	unsigned char *iv = calloc(header.key_length, sizeof(char));
+	unsigned char *iv = malloc(header.key_length/2);
 	unsigned char digest[header.key_length];
 	int len;
 
 	PKCS5_PBKDF2_HMAC(pass, strlen(pass), header.active_key_slots[0]->salt, SALT_LENGTH, header.active_key_slots[0]->iterations, EVP_sha256(), header.key_length, digest); 
 
-	iv[0] = header.active_key_slots[0]->key_offset;
+	memset(iv, 0, header.key_length/2);
+	*(uint64_t *)iv = header.active_key_slots[0]->key_offset;
 
 	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 	EVP_DecryptInit_ex(ctx, EVP_aes_256_xts(), NULL, digest, iv);
