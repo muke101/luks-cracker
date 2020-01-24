@@ -20,6 +20,13 @@
 #define SECTOR_SIZE 512
 #define SHA256_DIGEST_SIZE 256
 
+void test_func(int code, int exp)	{
+	if (code != exp)	{
+		printf("function returned with %d\n",code);
+		exit(1);
+	}
+}
+
 struct key_slot	{
 	unsigned int iterations;
 	unsigned char salt[SALT_LENGTH];
@@ -120,11 +127,10 @@ void set_active_slots(struct phdr *header, FILE *fp)	{
 	unsigned active;
 
 	for (i=0; i < TOTAL_KEY_SLOTS; i++)	{
-
 		fread(&active, sizeof(uint32_t), 1, fp);
 		active = ntohl(active);
 
-		if (active == KEY_ACTIVE)	{ //turns out I don't understand how file pointers work but I *think* this is fine??
+		if (active == KEY_ACTIVE)	{ 
 			add_slot(header,fp); 
 		}
 		else { //calling add_slot will parse the rest of the key slot and leave fp at the beginning of the next slot
@@ -135,11 +141,23 @@ void set_active_slots(struct phdr *header, FILE *fp)	{
 
 void hash(unsigned i, unsigned char *di, unsigned char *pi, size_t len)	{
 	i = htonl(i);
-	unsigned i_arr[sizeof(uint32_t)];
-	memcpy(i_arr, &i, sizeof(uint32_t));
+	//unsigned char test[len+4];
+	//if (i == 0)	{
+	//	for (int j=0; j < 4; j++)	{
+	//		test[j] = 0x0;
+	//	}
+	//}
+	//else	{
+	//	test[0] = 0x1;
+	//	test[1] = 0x0;
+	//	test[2] = 0x0;
+	//	test[3] = 0x0;
+	//}
+	//memcpy(test+4,di,len);
 	SHA256_CTX ctx;
 	SHA256_Init(&ctx);
-	SHA256_Update(&ctx, i_arr, sizeof(uint32_t));
+	//SHA256_Update(&ctx, test, len+4);
+	SHA256_Update(&ctx, &i, sizeof(uint32_t));
 	SHA256_Update(&ctx, di, len);
 	SHA256_Final(pi, &ctx);
 }                                                                        
@@ -187,9 +205,12 @@ void H2(unsigned char *d, size_t n)	{
 
 void xor(unsigned char *a, unsigned char *b, size_t n)	{ 
 	size_t i;
+	unsigned char tmp;
 
-	for (i=0; i < n; i++)	
-		a[i] = a[i] ^ b[i];
+	for (i=0; i < n; i++)	{
+		tmp = a[i]; //indexing a at same point on the same line is undefined
+		a[i] = tmp ^ b[i];
+	}
 }
 
 unsigned char *af_merge(unsigned char *split_key, size_t key_length, unsigned stripes, void (*H)(unsigned char *, size_t))	{ //find specification for this as well as H1, H2 in LUKS documentation
@@ -237,12 +258,12 @@ void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
 	}
 	printf("\n");
 	
-	if (memcmp(digest, header.mk_digest, DIGEST_LENGTH) == 0)	{
+	if (memcmp(key_digest, header.mk_digest, DIGEST_LENGTH) == 0)	{
 		printf("match!");
 	}
 }
 
-int find_keys(struct phdr header, unsigned char keys[8][64*4000], FILE *fp)	{ //FIXME: array length
+int find_keys(struct phdr header, unsigned char keys[8][32*4000], FILE *fp)	{ //FIXME: array length
 	int i;
 
 	for (i=0; header.active_key_slots[i]; i++)	{
@@ -272,7 +293,7 @@ int main(int argc, char *argv[])	{
 		return 1;
 	}
 
-	unsigned char keys[TOTAL_KEY_SLOTS][64*4000];
+	unsigned char keys[TOTAL_KEY_SLOTS][32*4000];
 
 	set_active_slots(&header, fp);
 	int number_of_keys = find_keys(header, keys, fp);
