@@ -263,7 +263,7 @@ void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
 	}
 }
 
-int find_keys(struct phdr header, unsigned char keys[8][32*4000], FILE *fp)	{ //FIXME: array length
+int find_keys(struct phdr header, unsigned char keys[8][8*4000], FILE *fp)	{ //FIXME: array length
 	int i;
 
 	for (i=0; header.active_key_slots[i]; i++)	{
@@ -293,7 +293,7 @@ int main(int argc, char *argv[])	{
 		return 1;
 	}
 
-	unsigned char keys[TOTAL_KEY_SLOTS][32*4000];
+	unsigned char keys[TOTAL_KEY_SLOTS][8*4000];
 
 	set_active_slots(&header, fp);
 	int number_of_keys = find_keys(header, keys, fp);
