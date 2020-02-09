@@ -19,6 +19,7 @@
 #define FIRST_KEY_OFFSET 208
 #define SECTOR_SIZE 512
 #define SHA256_DIGEST_SIZE 256
+#define KEY_SIZE 64*4000
 
 void test_func(int code, int exp)	{
 	if (code != exp)	{
@@ -141,22 +142,8 @@ void set_active_slots(struct phdr *header, FILE *fp)	{
 
 void hash(unsigned i, unsigned char *di, unsigned char *pi, size_t len)	{
 	i = htonl(i);
-	//unsigned char test[len+4];
-	//if (i == 0)	{
-	//	for (int j=0; j < 4; j++)	{
-	//		test[j] = 0x0;
-	//	}
-	//}
-	//else	{
-	//	test[0] = 0x1;
-	//	test[1] = 0x0;
-	//	test[2] = 0x0;
-	//	test[3] = 0x0;
-	//}
-	//memcpy(test+4,di,len);
 	SHA256_CTX ctx;
 	SHA256_Init(&ctx);
-	//SHA256_Update(&ctx, test, len+4);
 	SHA256_Update(&ctx, &i, sizeof(uint32_t));
 	SHA256_Update(&ctx, di, len);
 	SHA256_Final(pi, &ctx);
@@ -213,9 +200,9 @@ void xor(unsigned char *a, unsigned char *b, size_t n)	{
 	}
 }
 
-unsigned char *af_merge(unsigned char *split_key, size_t key_length, unsigned stripes, void (*H)(unsigned char *, size_t))	{ //find specification for this as well as H1, H2 in LUKS documentation
+unsigned char *af_merge(unsigned char *split_key, unsigned key_length, unsigned stripes, void (*H)(unsigned char *, size_t))	{ //find specification for this as well as H1, H2 in LUKS documentation
 		int i;
-		unsigned char *d = calloc(key_length, sizeof(char));
+		unsigned char *d = calloc((size_t)key_length, sizeof(char));
 
 		for (i=0; i < stripes-1; i++)	{
 			xor(d, split_key+(i*key_length), key_length); //split_key contains key_length many sets of stripes number of bytes, each corrosponding to 's1,s2..sn'
@@ -245,7 +232,7 @@ void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
 	EVP_DecryptFinal_ex(ctx, split_key + len, &len);
 	EVP_CIPHER_CTX_free(ctx);
 
-	key = af_merge(split_key, (size_t)header.key_length, header.active_key_slots[0]->stripes, header.version == 1 ? H1:H2); 
+	key = af_merge(split_key, header.key_length, header.active_key_slots[0]->stripes, header.version == 1 ? H1:H2); 
 
 	PKCS5_PBKDF2_HMAC(key, header.key_length, header.mk_digest_salt, SALT_LENGTH, header.mk_digest_iter, EVP_sha256(), DIGEST_LENGTH, key_digest);
 
@@ -253,17 +240,19 @@ void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
 		printf("%c", key_digest[len]);
 	}
 	printf("\n");
+
 	for (len=0; len < DIGEST_LENGTH; len++)	{
 		printf("%c", header.mk_digest[len]); 
 	}
 	printf("\n");
+
 	
 	if (memcmp(key_digest, header.mk_digest, DIGEST_LENGTH) == 0)	{
-		printf("match!");
+		printf("match!\n");
 	}
 }
 
-int find_keys(struct phdr header, unsigned char keys[8][8*4000], FILE *fp)	{ //FIXME: array length
+int find_keys(struct phdr header, unsigned char keys[8][KEY_SIZE], FILE *fp)	{ //FIXME: array length
 	int i;
 
 	for (i=0; header.active_key_slots[i]; i++)	{
@@ -281,7 +270,7 @@ int main(int argc, char *argv[])	{
 	char *drive = *++argv;
 	FILE *fp;
 	struct phdr header;
-	memset(header.active_key_slots, 0, TOTAL_KEY_SLOTS*sizeof(struct key_slot *)); 
+	memset(header.active_key_slots, 0, TOTAL_KEY_SLOTS*sizeof(struct key_slot *));  //done so we can iterate over them in the same way without caring how many are actually set
 
 	fp = fopen(drive, "rb");
 
@@ -293,7 +282,7 @@ int main(int argc, char *argv[])	{
 		return 1;
 	}
 
-	unsigned char keys[TOTAL_KEY_SLOTS][8*4000];
+	unsigned char keys[TOTAL_KEY_SLOTS][KEY_SIZE];
 
 	set_active_slots(&header, fp);
 	int number_of_keys = find_keys(header, keys, fp);
