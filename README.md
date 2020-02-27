@@ -6,7 +6,7 @@ To build, simply run `make`. You can pass the partition device node of your LUKS
 
 This is compatible with both LUKS versions 1 and 2. 
 
-# theory
+# implementation
 The parsing is implemented quite directly by simply reading bytes one at a time from the start sector of the header, referancing the LUKS documentation on header structure found here: https://mirrors.edge.kernel.org/pub/linux/utils/cryptsetup/LUKS_docs/on-disk-format.pdf
 
 The structure of the key recovery (crypto and anti-forensics reversal) is also derived from the above specification. 
