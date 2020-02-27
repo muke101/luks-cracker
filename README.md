@@ -2,7 +2,7 @@
 To provide experiance with systems programming, crypto programming and multithreaded programming all at once, I'm building a simple dictionary attack tool for LUKS encrytped devices. This will take the LUKS volume headers, read out the active key slots, and then implement LUKS's standard for key recovery (including an implementation of the LUKS Anti-Forensics Merger) to brute force passwords from a user provided wordlist. For every key slot containing a weak password provided in the wordlist, this program will through the use of multi-threading and extensive compiler optimizations be able to yield the corropsonding password for each key slot, which will themselves be usable to access the entire LUKS volume and bulk data. 
 
 # build and run
-To build, simply run `make`. You can pass the device node of your LUKS volume by the command line (`/dev/sdX`) or you can pass this device node to the script `get_luks_header` which will copy just the LUKS header into a file in the current directory which can then itself be passed to the main program to be worked on. 
+To build, simply run `make`. You can pass the partition device node of your LUKS volume by the command line (`/dev/sdXn`) or you can pass the raw device node to the script `get_luks_header` which will copy just the LUKS header into a file in the current directory which can then itself be passed to the main program to be worked on. 
 
 This is compatible with both LUKS versions 1 and 2. 
 
