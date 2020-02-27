@@ -48,7 +48,7 @@ struct phdr	{
 	struct key_slot *active_key_slots[TOTAL_KEY_SLOTS];
 };
 
-void read_data(unsigned char *arr, unsigned int len, FILE *fp)	{
+void read_data(unsigned char *arr, unsigned len, FILE *fp)	{
 	unsigned i;
 
 	for (i=0; i < len; i++)	{
@@ -124,8 +124,7 @@ void add_slot(struct phdr *header, FILE *fp)	{
 
 void set_active_slots(struct phdr *header, FILE *fp)	{
 	fseek(fp, FIRST_KEY_OFFSET, SEEK_SET);
-	int i;
-	unsigned active;
+	unsigned i, active;
 
 	for (i=0; i < TOTAL_KEY_SLOTS; i++)	{
 		fread(&active, sizeof(uint32_t), 1, fp);
@@ -154,8 +153,8 @@ void H1(unsigned char *d, size_t n)	{
 	size_t digest_size = SHA256_DIGEST_SIZE/8; //not making this portable for non-default hash functions for now
 	unsigned char di[digest_size];
 	unsigned char pi[digest_size];
-	int blocks = n / digest_size;
-	int crop = n % digest_size;
+	unsigned blocks = n / digest_size;
+	unsigned crop = n % digest_size;
 	
 	for (i=0; i < blocks; i++)	{
 		memcpy(di, d+(i*digest_size), digest_size);
@@ -172,7 +171,7 @@ void H1(unsigned char *d, size_t n)	{
 }
 
 void H2(unsigned char *d, size_t n)	{
-	unsigned i;
+	int i;
 	size_t digest_size = SHA256_DIGEST_SIZE/8;
 	unsigned char pi[digest_size];
 	int blocks = n / digest_size;
