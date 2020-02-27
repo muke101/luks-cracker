@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <arpa/inet.h>
+#include <endian.h>
 #include <stdint.h>
 #include <openssl/sha.h>
 #include <openssl/aes.h>
@@ -17,9 +17,9 @@
 #define DIGEST_LENGTH 20
 #define TOTAL_KEY_SLOTS 8
 #define FIRST_KEY_OFFSET 208
-#define SECTOR_SIZE 512
+#define SECTOR_SIZE 512 
 #define SHA256_DIGEST_SIZE 256
-#define KEY_SIZE 64*4000
+#define AF_SIZE 64*4000
 
 void test_func(int code, int exp)	{
 	if (code != exp)	{
@@ -72,7 +72,7 @@ int is_luks_volume(FILE *fp)	{
 void construct_header(struct phdr *header, FILE *fp)	{
 
 	fread(&header->version, sizeof(uint16_t), 1, fp);
-	header->version = ntohs(header->version);
+	header->version = be16toh(header->version);
 
 	read_data(header->cipher_name, NAME_LENGTH, fp);
 	
@@ -81,17 +81,17 @@ void construct_header(struct phdr *header, FILE *fp)	{
 	read_data(header->hash_spec, NAME_LENGTH, fp);
 
 	fread(&header->payload_offset, sizeof(uint32_t), 1, fp);
-	header->payload_offset = ntohl(header->payload_offset);
+	header->payload_offset = be32toh(header->payload_offset);
 
 	fread(&header->key_length, sizeof(uint32_t), 1, fp);
-	header->key_length = ntohl(header->key_length);
+	header->key_length = be32toh(header->key_length);
 
 	read_data(header->mk_digest, DIGEST_LENGTH, fp);
 
 	read_data(header->mk_digest_salt, SALT_LENGTH, fp);
 
 	fread(&header->mk_digest_iter, sizeof(uint32_t), 1, fp);
-	header->mk_digest_iter = ntohl(header->mk_digest_iter);
+	header->mk_digest_iter = be32toh(header->mk_digest_iter);
 
 }
 
@@ -103,15 +103,15 @@ void add_slot(struct phdr *header, FILE *fp)	{
 
 	if (slot)	{
 		fread(&(slot->iterations), sizeof(uint32_t), 1, fp);
-		slot->iterations = ntohl(slot->iterations);
+		slot->iterations = be32toh(slot->iterations);
 
 		read_data(slot->salt, SALT_LENGTH, fp);
 
 		fread(&(slot->key_offset), sizeof(uint32_t), 1, fp);
-		slot->key_offset = ntohl(slot->key_offset);
+		slot->key_offset = be32toh(slot->key_offset);
 
 		fread(&(slot->stripes), sizeof(uint32_t), 1, fp);
-		slot->stripes = ntohl(slot->stripes);
+		slot->stripes = be32toh(slot->stripes);
 
 		header->active_key_slots[i] = slot;
 		i++;
@@ -129,7 +129,7 @@ void set_active_slots(struct phdr *header, FILE *fp)	{
 
 	for (i=0; i < TOTAL_KEY_SLOTS; i++)	{
 		fread(&active, sizeof(uint32_t), 1, fp);
-		active = ntohl(active);
+		active = be32toh(active);
 
 		if (active == KEY_ACTIVE)	{ 
 			add_slot(header,fp); 
@@ -141,7 +141,7 @@ void set_active_slots(struct phdr *header, FILE *fp)	{
 }
 
 void hash(unsigned i, unsigned char *di, unsigned char *pi, size_t len)	{
-	i = htonl(i);
+	i = htobe32(i);
 	SHA256_CTX ctx;
 	SHA256_Init(&ctx);
 	SHA256_Update(&ctx, &i, sizeof(uint32_t));
@@ -201,7 +201,7 @@ void xor(unsigned char *a, unsigned char *b, size_t n)	{
 }
 
 unsigned char *af_merge(unsigned char *split_key, unsigned key_length, unsigned stripes, void (*H)(unsigned char *, size_t))	{ //find specification for this as well as H1, H2 in LUKS documentation
-		int i;
+		unsigned i;
 		unsigned char *d = calloc((size_t)key_length, sizeof(char));
 
 		for (i=0; i < stripes-1; i++)	{
@@ -214,7 +214,8 @@ unsigned char *af_merge(unsigned char *split_key, unsigned key_length, unsigned 
 }
 
 void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
-	int split_length = header.key_length*header.active_key_slots[0]->stripes;
+	//int split_length = header.key_length*header.active_key_slots[0]->stripes;
+	int split_length = AF_SIZE;
 	unsigned char split_key[split_length];
 	unsigned char *key; 
 	unsigned char *iv = calloc(header.key_length, sizeof(char));
@@ -225,7 +226,6 @@ void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
 	PKCS5_PBKDF2_HMAC(pass, strlen(pass), header.active_key_slots[0]->salt, SALT_LENGTH, header.active_key_slots[0]->iterations, EVP_sha256(), header.key_length, psk_digest); 
 
 	*(uint64_t *)iv = header.active_key_slots[0]->key_offset; //dm-crypt documentation has iv setting rules
-
 	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
 	EVP_DecryptInit_ex(ctx, EVP_aes_256_xts(), NULL, psk_digest, iv);
 	EVP_DecryptUpdate(ctx, split_key, &len, enc_key, split_length);
@@ -234,7 +234,7 @@ void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
 
 	key = af_merge(split_key, header.key_length, header.active_key_slots[0]->stripes, header.version == 1 ? H1:H2); 
 
-	PKCS5_PBKDF2_HMAC(key, header.key_length, header.mk_digest_salt, SALT_LENGTH, header.mk_digest_iter, EVP_sha256(), DIGEST_LENGTH, key_digest);
+	PKCS5_PBKDF2_HMAC((char *)key, header.key_length, header.mk_digest_salt, SALT_LENGTH, header.mk_digest_iter, EVP_sha256(), DIGEST_LENGTH, key_digest);
 
 	for (len=0; len < DIGEST_LENGTH; len++)	{ 
 		printf("%c", key_digest[len]);
@@ -252,7 +252,7 @@ void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
 	}
 }
 
-int find_keys(struct phdr header, unsigned char keys[8][KEY_SIZE], FILE *fp)	{ //FIXME: array length
+int find_keys(struct phdr header, unsigned char keys[8][AF_SIZE], FILE *fp)	{ //FIXME: array length
 	int i;
 
 	for (i=0; header.active_key_slots[i]; i++)	{
@@ -260,7 +260,8 @@ int find_keys(struct phdr header, unsigned char keys[8][KEY_SIZE], FILE *fp)	{ /
 		unsigned stripes = header.active_key_slots[i]->stripes;
 		unsigned length = header.key_length;
 		fseek(fp, (size_t)offset*SECTOR_SIZE, SEEK_SET);	
-		read_data(keys[i], length*stripes, fp); 
+		//read_data(keys[i], length*stripes, fp); 
+		read_data(keys[i], AF_SIZE, fp);
 	}
 
 	return i;
@@ -282,10 +283,10 @@ int main(int argc, char *argv[])	{
 		return 1;
 	}
 
-	unsigned char keys[TOTAL_KEY_SLOTS][KEY_SIZE];
+	unsigned char keys[TOTAL_KEY_SLOTS][AF_SIZE];
 
 	set_active_slots(&header, fp);
-	int number_of_keys = find_keys(header, keys, fp);
+	int number_of_keys = find_keys(header, keys, fp); //TODO: test with multiple key slots
 
 	int i;
 	unsigned char *key;

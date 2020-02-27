@@ -1,3 +1,4 @@
 try changing the hash spec to 256 explicitly? or maybe sha1 and reimp with sha1
 keys array is only using 8*4000 bytes instead of 64*4000??
 does enc_key and split_key pick up garbage somewhere?
+round read key to next sector

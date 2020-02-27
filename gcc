@@ -1,1 +1,0 @@
-gcc parser.c -lcrypto -O2 -flto -march=native -fipa-pta -fdevirtualize-at-ltrans -floop-block -floop-interchange -floop-strip-mine -floop-nest-optimize -fgraphite-identity -Wall -Wno-unused-result
