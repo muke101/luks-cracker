@@ -4,14 +4,14 @@ To provide experiance with systems programming, crypto programming and multithre
 # build and run
 To build, simply run `make`. You can pass the partition device node of your LUKS volume by the command line (`/dev/sdXn`) or you can pass the raw device node to the script `get_luks_header` which will copy just the LUKS header into a file in the current directory which can then itself be passed to the main program to be worked on. 
 
-This is compatible with both LUKS versions 1 and 2. 
-
 # implementation
 The parsing is implemented quite directly by simply reading bytes one at a time from the start sector of the header, referancing the LUKS documentation on header structure found here: https://mirrors.edge.kernel.org/pub/linux/utils/cryptsetup/LUKS_docs/on-disk-format.pdf
 
 The structure of the key recovery (crypto and anti-forensics reversal) is also derived from the above specification. 
 
-The cracking side is currently yet to be implemented, but the method of mutli-threading used will be tested against two different approaches. 
+The reading of the key, anti-forensics reversal and key decryption is implemented and fully functioning for both LUKS 1 and 2. 
+
+The cracking side is currently being implemented, but the method of mutli-threading used will be tested against two different approaches. 
 
 Firstly is the 'paralization' approach, of dividing the given wordlist amoung the given number of threads, and having each one act as the single threaded program within their section of the wordlist (ie, taking a password, attempting a decryption with it and trying the next one if not successful until a password is found or the list is exhausted).
 
