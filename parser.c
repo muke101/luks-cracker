@@ -215,21 +215,25 @@ unsigned char *af_merge(unsigned char *split_key, unsigned key_length, unsigned 
 void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
 	//int split_length = header.key_length*header.active_key_slots[0]->stripes;
 	int split_length = AF_SIZE;
+	size_t iv_length = 16;
 	unsigned char split_key[split_length];
 	unsigned char *key; 
-	unsigned char *iv = calloc(header.key_length, sizeof(char));
+	unsigned char *iv = malloc(iv_length);
 	unsigned char psk_digest[header.key_length];
 	unsigned char key_digest[DIGEST_LENGTH];
 	int len;
 
 	PKCS5_PBKDF2_HMAC(pass, strlen(pass), header.active_key_slots[0]->salt, SALT_LENGTH, header.active_key_slots[0]->iterations, EVP_sha256(), header.key_length, psk_digest); 
 
-	*(uint64_t *)iv = header.active_key_slots[0]->key_offset; //dm-crypt documentation has iv setting rules
-	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-	EVP_DecryptInit_ex(ctx, EVP_aes_256_xts(), NULL, psk_digest, iv);
-	EVP_DecryptUpdate(ctx, split_key, &len, enc_key, split_length);
-	EVP_DecryptFinal_ex(ctx, split_key + len, &len);
-	EVP_CIPHER_CTX_free(ctx);
+	for (int i=0; i < split_length/512; ++i)	{ //TODO formalize sector shifting to form data chunks
+		memset(iv, 0, iv_length);
+		*(uint64_t *)iv = i; //dm-crypt documentation has iv setting rules
+		EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+		EVP_DecryptInit_ex(ctx, EVP_aes_256_xts(), NULL, psk_digest, iv);
+		EVP_DecryptUpdate(ctx, split_key+(i*SECTOR_SIZE), &len, enc_key+(i*SECTOR_SIZE), SECTOR_SIZE);
+		EVP_DecryptFinal_ex(ctx, split_key+(i*SECTOR_SIZE) + len, &len);
+		EVP_CIPHER_CTX_free(ctx);
+	}
 
 	key = af_merge(split_key, header.key_length, header.active_key_slots[0]->stripes, header.version == 1 ? H1:H2); 
 
