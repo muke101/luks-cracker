@@ -19,7 +19,6 @@
 #define FIRST_KEY_OFFSET 208
 #define SECTOR_SIZE 512 
 #define SHA256_DIGEST_SIZE 256
-#define AF_SIZE 64*4000
 
 void test_func(int code, int exp)	{
 	if (code != exp)	{
@@ -213,8 +212,7 @@ unsigned char *af_merge(unsigned char *split_key, unsigned key_length, unsigned 
 }
 
 void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
-	//int split_length = header.key_length*header.active_key_slots[0]->stripes;
-	int split_length = AF_SIZE;
+	int split_length = header.key_length*header.active_key_slots[0]->stripes;
 	size_t iv_length = 16;
 	unsigned char split_key[split_length];
 	unsigned char *key; 
@@ -225,7 +223,7 @@ void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{
 
 	PKCS5_PBKDF2_HMAC(pass, strlen(pass), header.active_key_slots[0]->salt, SALT_LENGTH, header.active_key_slots[0]->iterations, EVP_sha256(), header.key_length, psk_digest); 
 
-	for (int i=0; i < split_length/512; ++i)	{ //TODO formalize sector shifting to form data chunks
+	for (int i=0; i < split_length/SECTOR_SIZE; ++i)	{ //TODO formalize sector shifting to form data chunks
 		memset(iv, 0, iv_length);
 		*(uint64_t *)iv = i; //dm-crypt documentation has iv setting rules
 		EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -263,8 +261,7 @@ int find_keys(struct phdr header, unsigned char keys[8][AF_SIZE], FILE *fp)	{ //
 		unsigned stripes = header.active_key_slots[i]->stripes;
 		unsigned length = header.key_length;
 		fseek(fp, (size_t)offset*SECTOR_SIZE, SEEK_SET);	
-		//read_data(keys[i], length*stripes, fp); 
-		read_data(keys[i], AF_SIZE, fp);
+		read_data(keys[i], length*stripes, fp); 
 	}
 
 	return i;
