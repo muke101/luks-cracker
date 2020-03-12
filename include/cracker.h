@@ -6,6 +6,7 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
+#include <pthread.h>
 #include "parser.h"
 
 void crack(struct phdr header);

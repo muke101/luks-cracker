@@ -5,16 +5,17 @@ LTO=-flto=10
 GRAPHITE=-fgraphite-identity -floop-nest-optimize -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block
 SECURITY=-no-pie -fno-stack-protector -fno-stack-clash-protection
 IPA=-fipa-pta
+TESTS=-fsanitize=address,undefined
 
 IDIR=../include
 _DEPS = parser.h cracker.h
 DEPS= $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-LIBS = -lcrypto
+LIBS = -lcrypto -lpthread
 
 OBJ = parser.o cracker.o main.o
 
-CFLAGS =$(STANDARD) $(LTO) $(GRAPHITE) $(IPA) $(SECURITY) $(WARNINGS) -I$(IDIR) 
+CFLAGS =$(STANDARD) $(LTO) $(GRAPHITE) $(IPA) $(SECURITY) $(WARNINGS) -I$(IDIR) $(TESTS)
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
