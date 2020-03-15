@@ -4,17 +4,17 @@
 
 int main(int argc, char **argv)	{
 	struct phdr header;
-	int i, j, wordlist_found = 0, device_found = 0, threads_found = 0;
-	unsigned number_of_threads;
-	char *device, *wordlist, *threads;
+	int i, j, wordlist_found = 0, device_found = 0, threads_found = 0, number_found = 0;
+	unsigned number_of_threads, number_of_slots;
+	char *device, *wordlist, *threads, *number;
 	FILE *header_file, *wordlist_file;
 	
 	if (argc == 1)	{
-		printf("Usage: lukscrack [-j number of threads] [-w wordlist] [-d LUKS device]\n");
+		printf("Usage: lukscrack [-j number of threads] [-n number of key slots to attempt cracking] [-w wordlist] [-d LUKS device]\n");
 		return 0;
 	}
 
-	for (i=0; i < argc && !threads_found; i++)	{
+	for (i=0; i < argc && !threads_found; i++)	{ //TODO handle missing arguments but present flags
 		if (strncmp(argv[i], "-j", 2) == 0)	{
 			threads = argv[++i];
 			threads_found = 1;
@@ -22,6 +22,17 @@ int main(int argc, char **argv)	{
 		else if (strncmp(argv[i], "--threads", 9) == 0)	{
 			threads = argv[++i];
 			threads_found = 1;
+		}
+	}
+
+	for (i=0; i < argc && !number_found; i++)	{
+		if (strncmp(argv[i], "-n", 2) == 0)	{
+			number = argv[++i];
+			number_found = 1;
+		}
+		else if (strncmp(argv[i], "--number", 8) == 0)	{
+			number = argv[++i];
+			number_found = 1;
 		}
 	}
 
@@ -58,6 +69,11 @@ int main(int argc, char **argv)	{
 		return 1;
 	}
 
+	if (!number_found)	{
+		printf("please specify number of key slots to attempt with -n <number of key slots>\n");
+		return 1;
+	}
+
 	if (!device_found)	{
 		printf("please supply a LUKS encrypted device or file containing a LUKS header with -d <device>\n");
 		return 1;
@@ -68,8 +84,14 @@ int main(int argc, char **argv)	{
 		printf("invalid threads number\n");
 		return 1;
 	}
-
 	number_of_threads = atoi(threads);
+
+	for (i=0; isdigit(*(number+i)); i++);
+	if (number[i] != '\0')	{
+		printf("invalid key slot number\n");
+		return 1;
+	}
+	number_of_slots = atoi(number); //TODO see if non-consecuitive key slots are allowed and handle if so
 
 	header_file = fopen(device, "r");
 
@@ -96,7 +118,12 @@ int main(int argc, char **argv)	{
 		return 1;
 	}
 
-	crack(header, wordlist_file, number_of_threads);
+	if (number_of_slots > header.active_slot_count)	{
+		printf("specified number of key slots to crack greater than active key slots in LUKS header. The maximum number of active key slots if %d\n", header.active_slot_count);
+		return 1;
+	}
+
+	crack(header, wordlist_file, number_of_threads, number_of_slots);
 
 	fclose(header_file);
 	fclose(wordlist_file);

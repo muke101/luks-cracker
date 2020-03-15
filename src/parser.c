@@ -49,7 +49,7 @@ void construct_header(struct phdr *header, FILE *fp)	{
 
 void add_slot(struct phdr *header, FILE *fp)	{
 
-	int i = header->active_slots_number;
+	int i = header->active_slot_count;
 	struct key_slot slot;
 
 	fread(&(slot.iterations), sizeof(uint32_t), 1, fp);
@@ -70,14 +70,14 @@ void add_slot(struct phdr *header, FILE *fp)	{
 void set_active_slots(struct phdr *header, FILE *fp)	{
 	fseek(fp, FIRST_KEY_OFFSET, SEEK_SET);
 	unsigned i, active;
-	header->active_slots_number=0;
+	header->active_slot_count=0;
 
 	for (i=0; i < TOTAL_KEY_SLOTS; i++)	{
 		fread(&active, sizeof(uint32_t), 1, fp);
 		active = be32toh(active);
 
 		if (active == KEY_ACTIVE)	{ 
-			header->active_slots_number+=1;
+			header->active_slot_count+=1;
 			add_slot(header,fp); 
 		}
 		else { //calling add_slot will parse the rest of the key slot and leave fp at the beginning of the next slot
@@ -86,29 +86,28 @@ void set_active_slots(struct phdr *header, FILE *fp)	{
 	}
 }
 
-void find_keys(struct phdr *header, unsigned char **keys, FILE *fp)	{ 
+void find_keys(struct phdr *header, FILE *fp)	{ 
 	int i;
 
-	for (i=0; i < header->active_slots_number; i++)	{
+	for (i=0; i < header->active_slot_count; i++)	{
 		unsigned offset = header->active_key_slots[i].key_offset;
 		unsigned stripes = header->active_key_slots[i].stripes;
 		unsigned length = header->key_length;
+		unsigned char *key = malloc(length*stripes*sizeof(char));
 		fseek(fp, (size_t)offset*SECTOR_SIZE, SEEK_SET);	
-		keys[i] = malloc(length*stripes*sizeof(char));
 		read_data(keys[i], length*stripes, fp); 
-		header->active_key_slots[i].key_data = keys[i];
+		header->active_key_slots[i].key_data = key;
 	}
 }
 
 struct phdr parse_header(FILE *fp)	{
 	struct phdr header;
-	unsigned char **keys = malloc(TOTAL_KEY_SLOTS*sizeof(char*));
 
 	construct_header(&header, fp); 
 
 	set_active_slots(&header, fp);
 
-	find_keys(&header, keys, fp); 
+	find_keys(&header, fp); 
 
 	return header;
 }

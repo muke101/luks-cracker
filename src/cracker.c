@@ -13,36 +13,41 @@ unsigned long count_lines(FILE *fp)	{
 	return i;
 }
 
-void crack(struct phdr header, FILE *wordlist, unsigned thread_number)	{
-	
-	int i;
+char *crack(struct phdr header, FILE *wordlist, unsigned thread_number, unsigned number_of_keyslots)	{
+	int i, j;
 	unsigned long password_number, passwords_per_thread, remainder;
-	unsigned wordlist_start[thread_number];
 	char password[thread_number][1000]; //here's hoping someone doesn't use a password longer than 1000 characters I guess
 	password_number = count_lines(wordlist);	
 	passwords_per_thread = password_number/thread_number; //integer devision, will just mean the last thread takes on a couple more than the others if there are remainders
 	remainder = password_number % thread_number;
 
-	for (i=0; i < thread_number; i++)
-		wordlist_start[i] = i*passwords_per_thread;
-	
 	struct T threads[thread_number];
 
-	//for (i=0; i < thread_number; i++)	{
-	//	pthread_create(&(threads[i].id), NULL, FILL, FILL); 
-	//}
+	for (i=0; i < number_of_keyslots; i++)	{
 
-	//for (i=0; i < thread_number; i++)	{
-	//	pthread_join(threads[i].id, password[i]); 
-	//}
+		for (j=0; j < thread_number; j++)	{
+			threads[j].wordlist_start = j*passwords_per_thread;
+			threads[j].header = header;
+			threads[j].wordlist = wordlist;
+			threads[j].step = passwords_per_thread;
+			threads[j].keyslot = i;
+		}
 
-	printf("%p\n", PTHREAD_CANCELED);
+		for (j=0; j < thread_number; j++)	{
+			pthread_create(&(threads[j].id), NULL, begin_brute_force, &(threads[j])); 
+		}
 
-//	for (i=0; i < thread_number; i++)	{
-//		if (strcmp(password[i], PTHREAD_CANCELED) != 0)	{
-//			
-//		}
-//	}
+		for (j=0; j < thread_number; j++)	{
+			pthread_join(threads[j].id, password[j]); 
+		}
+
+		for (j=0; j < thread_number; j++)	{
+			if (password[j][0] != 0xff)	{ //hack based on the fact we want to store chars and pthread will write the highest memory address as a constant to signify a thread was cancelled, but it works
+				return password[j];
+			}
+		}
+
+	}
 
 
 }
@@ -118,6 +123,40 @@ unsigned char *af_merge(unsigned char *split_key, unsigned key_length, unsigned 
 
 		xor(d, split_key+(i*key_length), key_length);
 		return d;
+}
+
+void strip(char *line)	{
+	int i;
+
+	for (i=0; *line[i]; i++)	{ //TODO see if you can microoptimize by counting backwards
+		if (*line[i] == '\n')
+			*line[i] = '\0';
+	}
+}
+
+void 
+
+void *begin_brute_force(void *thread)	{
+
+	int i;
+	int keyslot = thread->keyslot;
+	struct phdr header = thread->header;
+	unsigned char *global_key = header.active_key_slots[keyslot].key_data;
+	unsigned char key[sizeof(global_key)];
+	memcpy(key, global_key, sizeof(global_key)*sizeof(char)); //create local copy of key on the stack that an indivisual thread can read to and write to presumerbly faster, will confirm this later though
+	fseek(thread->wordlist, thread->wordlist_start, SEEK_SET);
+	char password[1000];
+	size_t password_len;
+	
+	for (i=0; i < thread->step; i++)	{
+		getline(password, &password_len, thread->wordlist);	
+		strip(password);
+
+
+	}
+
+
+	
 }
 
 void test_key(unsigned char *enc_key, const char *pass, struct phdr header)	{

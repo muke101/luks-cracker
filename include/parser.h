@@ -38,7 +38,7 @@ struct phdr {
     unsigned char mk_digest_salt[SALT_LENGTH];
     unsigned int mk_digest_iter;
     struct key_slot active_key_slots[TOTAL_KEY_SLOTS];
-    int active_slots_number;
+    int active_slot_count;
 };
 
 int is_luks_header(FILE *fp);

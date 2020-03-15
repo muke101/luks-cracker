@@ -10,14 +10,18 @@
 #include <stdio.h>
 #include "parser.h"
 
-void crack(struct phdr header, FILE *wordlistFile, unsigned threads);
+char *crack(struct phdr header, FILE *wordlist, unsigned thread_number, unsigned number_of_keyslots);
+
 
 struct T	{
 	pthread_t id;
 	unsigned wordlist_start;
 	struct phdr header;
-	FILE wordlist;
+	FILE *wordlist;
+	unsigned keyslot;
 	char result[1000];
 };
+
+void *begin_brute_force(void *thread);
 
 #endif
