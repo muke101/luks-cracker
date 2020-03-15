@@ -1,7 +1,7 @@
 #include "parser.h"
 #include "cracker.h"
 
-void crack(struct phdr header)	{
+void crack(struct phdr header, FILE *wordlist)	{
 
 }
 

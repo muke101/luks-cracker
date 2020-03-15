@@ -7,8 +7,9 @@
 #include <openssl/err.h>
 #include <openssl/crypto.h>
 #include <pthread.h>
+#include <stdio.h>
 #include "parser.h"
 
-void crack(struct phdr header);
+void crack(struct phdr header, FILE *wordlistFile);
 
 #endif
