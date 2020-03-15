@@ -4,13 +4,25 @@
 
 int main(int argc, char **argv)	{
 	struct phdr header;
-	int i, j, wordlistFound = 0, deviceFound = 0;
-	char *device, *wordlist;
+	int i, j, wordlistFound = 0, deviceFound = 0, threadsFound = 0;
+	unsigned threadsNumber;
+	char *device, *wordlist, *threads;
 	FILE *fp, *wordlistFile;
 	
 	if (argc == 1)	{
-		printf("Usage: lukscrack [-w wordlist] [-d LUKS device]\n");
+		printf("Usage: lukscrack [-j number of threads] [-w wordlist] [-d LUKS device]\n");
 		return 0;
+	}
+
+	for (i=0; i < argc && !threadsFound; i++)	{
+		if (strncmp(argv[i], "-j", 2) == 0)	{
+			threads = argv[++i];
+			threadsFound = 1;
+		}
+		else if (strncmp(argv[i], "--threads", 9) == 0)	{
+			threads = argv[++i];
+			threadsFound = 1;
+		}
 	}
 
 	for (i=0; i < argc && !wordlistFound; i++)	{
@@ -41,11 +53,23 @@ int main(int argc, char **argv)	{
 		}
 	}
 
+	if (!threadsFound)	{
+		printf("please specify number of threads with -j <number of threads>\n");
+		return 1;
+	}
+
 	if (!deviceFound)	{
 		printf("please supply a LUKS encrypted device or file containing a LUKS header with -d <device>\n");
 		return 1;
 	}
 
+	for (i=0; isdigit(*(threads+i)); i++);
+	if (threads[i] != '\0')	{
+		printf("invalid threads number\n");
+		return 1;
+	}
+
+	threadsNumber = atoi(threads);
 
 	fp = fopen(device, "r");
 
@@ -67,12 +91,12 @@ int main(int argc, char **argv)	{
 
 	wordlistFile = fopen(wordlist, "r");
 
-	if (!fp)	{
+	if (!wordlistFile)	{
 		printf("%s: no such file\n", wordlist); //TODO cover case where it's a permissions error
 		return 1;
 	}
 
-	crack(header, wordlistFile);
+	crack(header, wordlistFile, threadsNumber);
 
 	return 0;
 }
