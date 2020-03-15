@@ -10,16 +10,21 @@
 #include <stdio.h>
 #include "parser.h"
 
-char *crack(struct phdr header, FILE *wordlist, unsigned thread_number, unsigned number_of_keyslots);
+struct keyslot_password	{
+	unsigned keyslot_index;
+	char *password;
+};
 
+struct  keyslot_password *crack(struct phdr header, FILE *wordlist, unsigned thread_number, unsigned number_of_keyslots);
 
 struct T	{
 	pthread_t id;
 	unsigned wordlist_start;
+	unsigned step;
 	struct phdr header;
 	FILE *wordlist;
 	unsigned keyslot;
-	char result[1000];
+	void *result;
 };
 
 void *begin_brute_force(void *thread);

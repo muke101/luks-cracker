@@ -95,7 +95,7 @@ void find_keys(struct phdr *header, FILE *fp)	{
 		unsigned length = header->key_length;
 		unsigned char *key = malloc(length*stripes*sizeof(char));
 		fseek(fp, (size_t)offset*SECTOR_SIZE, SEEK_SET);	
-		read_data(keys[i], length*stripes, fp); 
+		read_data(key, length*stripes, fp); 
 		header->active_key_slots[i].key_data = key;
 	}
 }
