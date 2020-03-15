@@ -1,7 +1,49 @@
 #include "parser.h"
 #include "cracker.h"
 
-void crack(struct phdr header, FILE *wordlist, int threads)	{
+
+unsigned long count_lines(FILE *fp)	{
+	unsigned long i;
+	char c;
+
+	for (i=0; fread(&c, sizeof(char), 1, fp);)
+		if (c == '\n')
+			i++;
+
+	return i;
+}
+
+void crack(struct phdr header, FILE *wordlist, unsigned thread_number)	{
+	
+	int i;
+	unsigned long password_number, passwords_per_thread, remainder;
+	unsigned wordlist_start[thread_number];
+	char password[thread_number][1000]; //here's hoping someone doesn't use a password longer than 1000 characters I guess
+	password_number = count_lines(wordlist);	
+	passwords_per_thread = password_number/thread_number; //integer devision, will just mean the last thread takes on a couple more than the others if there are remainders
+	remainder = password_number % thread_number;
+
+	for (i=0; i < thread_number; i++)
+		wordlist_start[i] = i*passwords_per_thread;
+	
+	struct T threads[thread_number];
+
+	//for (i=0; i < thread_number; i++)	{
+	//	pthread_create(&(threads[i].id), NULL, FILL, FILL); 
+	//}
+
+	//for (i=0; i < thread_number; i++)	{
+	//	pthread_join(threads[i].id, password[i]); 
+	//}
+
+	printf("%p\n", PTHREAD_CANCELED);
+
+//	for (i=0; i < thread_number; i++)	{
+//		if (strcmp(password[i], PTHREAD_CANCELED) != 0)	{
+//			
+//		}
+//	}
+
 
 }
 

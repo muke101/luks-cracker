@@ -86,29 +86,29 @@ void set_active_slots(struct phdr *header, FILE *fp)	{
 	}
 }
 
-void find_keys(struct phdr header, unsigned char **keys, FILE *fp)	{ 
+void find_keys(struct phdr *header, unsigned char **keys, FILE *fp)	{ 
 	int i;
 
-	for (i=0; i < header.active_slots_number; i++)	{
-		unsigned offset = header.active_key_slots[i].key_offset;
-		unsigned stripes = header.active_key_slots[i].stripes;
-		unsigned length = header.key_length;
+	for (i=0; i < header->active_slots_number; i++)	{
+		unsigned offset = header->active_key_slots[i].key_offset;
+		unsigned stripes = header->active_key_slots[i].stripes;
+		unsigned length = header->key_length;
 		fseek(fp, (size_t)offset*SECTOR_SIZE, SEEK_SET);	
-		keys[i] = malloc(length*stripes);
+		keys[i] = malloc(length*stripes*sizeof(char));
 		read_data(keys[i], length*stripes, fp); 
+		header->active_key_slots[i].key_data = keys[i];
 	}
 }
 
 struct phdr parse_header(FILE *fp)	{
 	struct phdr header;
-	unsigned char *keys[TOTAL_KEY_SLOTS];
+	unsigned char **keys = malloc(TOTAL_KEY_SLOTS*sizeof(char*));
 
 	construct_header(&header, fp); 
 
 	set_active_slots(&header, fp);
 
-	find_keys(header, keys, fp); 
+	find_keys(&header, keys, fp); 
 
-	fclose(fp);
 	return header;
 }

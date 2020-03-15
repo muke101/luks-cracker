@@ -24,6 +24,7 @@ struct key_slot {
     unsigned char salt[SALT_LENGTH];
     unsigned int key_offset;
     unsigned int stripes;
+	unsigned char *key_data;
 };
 
 struct phdr {
