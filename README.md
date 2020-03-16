@@ -9,9 +9,7 @@ The parsing is implemented quite directly by simply reading bytes one at a time 
 
 The structure of the key recovery (crypto and anti-forensics reversal) is also derived from the above specification. 
 
-The reading of the key, anti-forensics reversal and key decryption is implemented and fully functioning for both LUKS 1 and 2. 
-
-The cracking side is currently being implemented, but the method of mutli-threading used will be tested against two different approaches. 
+Currently the full process of key recovery and brute forcing is implemened using the paralization approach described below. The second method of pipelining is in the process of being implemented and then the two will be compared against each other. There are also plans to add GPU acceleration after this as well.
 
 Firstly is the 'paralization' approach, of dividing the given wordlist amoung the given number of threads, and having each one act as the single threaded program within their section of the wordlist (ie, taking a password, attempting a decryption with it and trying the next one if not successful until a password is found or the list is exhausted).
 
