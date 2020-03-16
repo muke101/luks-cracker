@@ -11,7 +11,7 @@ The structure of the key recovery (crypto and anti-forensics reversal) is also d
 
 Currently the full process of key recovery and brute forcing is implemened using the paralization approach described below. The second method of pipelining is in the process of being implemented and then the two will be compared against each other. There are also plans to add GPU acceleration after this as well.
 
-![image](https://i.imgur.com/HalyaXo.png
+![image](https://i.imgur.com/HalyaXo.png)
 
 As seen, currently using the paralization method the brute forcer can get through ~100 password guesses in just over two minutes with full compiler optimization (see makefile). 
 
