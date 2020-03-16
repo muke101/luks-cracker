@@ -137,7 +137,7 @@ int main(int argc, char **argv)	{
 	}
 
 	for (i=0; i < header.active_slot_count; i++)
-		free(header.active_key_slots[i].key_data);
+		free(header.active_key_slots[i]->key_data);
 
 	fclose(header_file);
 	fclose(wordlist_file);

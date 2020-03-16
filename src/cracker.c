@@ -1,7 +1,7 @@
 #include "parser.h"
 #include "cracker.h"
 
-int passwordFound = 0;
+int password_found = 0;
 
 unsigned long count_lines(FILE *fp)	{
 	unsigned long i;
@@ -36,7 +36,6 @@ struct keyslot_password *crack(struct phdr header, FILE *wordlist, unsigned thre
 			threads[j].keyslot = i;
 		}
 		threads[--j].step+=remainder;
-		printf("hellohello\n");
 
 		for (j=0; j < thread_number; j++)	{
 			pthread_create(&(threads[j].id), NULL, begin_brute_force, &(threads[j])); 
@@ -138,10 +137,10 @@ void strip(char *line)	{
 }
 
 void derive_key(char *password, size_t password_len, struct phdr header, unsigned keyslot, unsigned char *digest)	{
-	struct key_slot active_slot = header.active_key_slots[keyslot];
-	unsigned char *salt = active_slot.salt;
+	struct key_slot *active_slot = header.active_key_slots[keyslot];
+	unsigned char *salt = active_slot->salt;
 	unsigned salt_len = SALT_LENGTH;
-	unsigned iteration_count = active_slot.iterations;
+	unsigned iteration_count = active_slot->iterations;
 	unsigned key_len = header.key_length;
 
 	PKCS5_PBKDF2_HMAC(password, password_len, salt, salt_len, iteration_count, EVP_sha256(), key_len, digest);
@@ -185,31 +184,32 @@ void *begin_brute_force(void *threadInfo)	{
 	struct T thread = *((struct T *)threadInfo);
 	int keyslot = thread.keyslot;
 	struct phdr header = thread.header;
-	unsigned char *global_key = header.active_key_slots[keyslot].key_data;
-	unsigned unsplit_length = (unsigned)sizeof(global_key);
-	unsigned char enc_key[unsplit_length];
-	memcpy(enc_key, global_key, unsplit_length*sizeof(char)); //create local copy of key on the stack that an indivisual thread can read to and write to presumerbly faster, will confirm this later though
+	FILE *fp = thread.wordlist; //create local copy of wordlist file descriptor that each thread edits seperately
+	unsigned char *global_key = header.active_key_slots[keyslot]->key_data;
+	unsigned split_length = header.active_key_slots[keyslot]->stripes*header.key_length;
+	unsigned char enc_key[split_length];
+	memcpy(enc_key, global_key, split_length*sizeof(char)); //create local copy of key on the stack that an indivisual thread can read to and write to presumerbly faster, will confirm this later though
 	size_t bufsize = 1000;
 	char p[bufsize];
 	char *password = p;
 	unsigned char derived_key[header.key_length];
-	unsigned block_count = unsplit_length/SECTOR_SIZE; 
+	unsigned block_count = split_length/SECTOR_SIZE; 
 	unsigned iv_len = 16;
 	unsigned char iv[iv_len];
-	unsigned char split_key[unsplit_length]; 
+	unsigned char split_key[split_length]; 
 	unsigned char key_candidate[header.key_length];
 	
-	fseek(thread.wordlist, thread.wordlist_start, SEEK_SET);
-	for (i=0; i < thread.step && !passwordFound; i++)	{
-		getline(&password, &bufsize, thread.wordlist);	
+	fseek(fp, thread.wordlist_start, SEEK_SET);
+	for (i=0; i < thread.step && !password_found; i++)	{
+		getline(&password, &bufsize, fp);	
 		strip(password);
 		printf("%s\n",password);
 		derive_key(password, strlen(password), header, keyslot, derived_key); 
 		decrypt_blocks(block_count, SECTOR_SIZE, iv, iv_len, derived_key, enc_key, split_key);
-		af_merge(key_candidate, split_key, header.active_key_slots[keyslot].stripes, header.key_length, header.version == 1 ? H1:H2); 
+		af_merge(key_candidate, split_key, header.active_key_slots[keyslot]->stripes, header.key_length, header.version == 1 ? H1:H2); 
 		printf("testtesttest\n");
 		if (checksum(key_candidate, header))	{
-			passwordFound = 1;
+			password_found = 1;
 			unsigned char *successful_password = malloc(strlen(password));
 			memcpy(successful_password, password, strlen(password));
 			pthread_exit((void*)successful_password);

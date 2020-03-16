@@ -50,18 +50,18 @@ void construct_header(struct phdr *header, FILE *fp)	{
 void add_slot(struct phdr *header, FILE *fp)	{
 
 	int i = header->active_slot_count;
-	struct key_slot slot;
+	struct key_slot *slot = malloc(sizeof(struct key_slot));
 
-	fread(&(slot.iterations), sizeof(uint32_t), 1, fp);
-	slot.iterations = be32toh(slot.iterations);
+	fread(&(slot->iterations), sizeof(uint32_t), 1, fp);
+	slot->iterations = be32toh(slot->iterations);
 
-	read_data(slot.salt, SALT_LENGTH, fp);
+	read_data(slot->salt, SALT_LENGTH, fp);
 
-	fread(&(slot.key_offset), sizeof(uint32_t), 1, fp);
-	slot.key_offset = be32toh(slot.key_offset);
+	fread(&(slot->key_offset), sizeof(uint32_t), 1, fp);
+	slot->key_offset = be32toh(slot->key_offset);
 
-	fread(&(slot.stripes), sizeof(uint32_t), 1, fp);
-	slot.stripes = be32toh(slot.stripes);
+	fread(&(slot->stripes), sizeof(uint32_t), 1, fp);
+	slot->stripes = be32toh(slot->stripes);
 
 	header->active_key_slots[i] = slot;
 }
@@ -90,13 +90,13 @@ void find_keys(struct phdr *header, FILE *fp)	{
 	int i;
 
 	for (i=0; i < header->active_slot_count; i++)	{
-		unsigned offset = header->active_key_slots[i].key_offset;
-		unsigned stripes = header->active_key_slots[i].stripes;
+		unsigned offset = header->active_key_slots[i]->key_offset;
+		unsigned stripes = header->active_key_slots[i]->stripes;
 		unsigned length = header->key_length;
 		unsigned char *key = malloc(length*stripes*sizeof(char));
 		fseek(fp, (size_t)offset*SECTOR_SIZE, SEEK_SET);	
 		read_data(key, length*stripes, fp); 
-		header->active_key_slots[i].key_data = key;
+		header->active_key_slots[i]->key_data = key;
 	}
 }
 
