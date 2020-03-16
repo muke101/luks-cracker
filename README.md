@@ -11,6 +11,10 @@ The structure of the key recovery (crypto and anti-forensics reversal) is also d
 
 Currently the full process of key recovery and brute forcing is implemened using the paralization approach described below. The second method of pipelining is in the process of being implemented and then the two will be compared against each other. There are also plans to add GPU acceleration after this as well.
 
-Firstly is the 'paralization' approach, of dividing the given wordlist amoung the given number of threads, and having each one act as the single threaded program within their section of the wordlist (ie, taking a password, attempting a decryption with it and trying the next one if not successful until a password is found or the list is exhausted).
+![image](https://i.imgur.com/HalyaXo.png
+
+As seen, currently using the paralization method the brute forcer can get through ~100 password guesses in just over two minutes with full compiler optimization (see makefile). 
+
+The 'paralization' approach is simply dividing the given wordlist amoung the given number of threads, and having each one act as the single threaded program within their section of the wordlist (ie, taking a password, attempting a decryption with it and trying the next one if not successful until a password is found or the list is exhausted).
 
 The second approach however is a 'pipelining' method. This takes each subsection of a whole key recovery attempt (password hashing, anti-forensics reversal and key decryption attempt) and asings them to specific provided threads, such that a thread is only ever carrying out the same operation for different inputs provided from further up the pipeline throughout the brute force. This should in theory provide better cache utiliztion between cores that the threads run on, however modern operating systems and compilers being as they are there's no way to know for sure without some kind of benchmarking. Luckily we have access to a 40 thread machine to test both methods on, so the intention is to implement both and compare the differences, if any significant ones are even observed at all. This should be interesting research that could inform how to best approach brute forcing convoluted crypto systems like that found in LUKS.
