@@ -129,7 +129,7 @@ int main(int argc, char **argv)	{
 
 	for (i=0; i < number_of_slots; i++)	{
 		if (passwords[i].password)	{
-			printf("Found password %s\n for keyslot %d\n", passwords[i].password, passwords[i].keyslot_index);
+			printf("Found password '%s'\n for keyslot %d\n", passwords[i].password, passwords[i].keyslot_index);
 			free(passwords[i].password);
 		}
 		else

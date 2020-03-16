@@ -49,7 +49,7 @@ void construct_header(struct phdr *header, FILE *fp)	{
 
 void add_slot(struct phdr *header, FILE *fp)	{
 
-	int i = header->active_slot_count;
+	int i = header->active_slot_count-1;
 	struct key_slot *slot = malloc(sizeof(struct key_slot));
 
 	fread(&(slot->iterations), sizeof(uint32_t), 1, fp);
