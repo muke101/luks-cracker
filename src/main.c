@@ -129,12 +129,14 @@ int main(int argc, char **argv)	{
 
 	for (i=0; i < number_of_slots; i++)	{
 		if (passwords[i].password)	{
-			printf("Found password '%s'\n for keyslot %d\n", passwords[i].password, passwords[i].keyslot_index);
+			printf("Found password '%s'\n for keyslot %d\n", passwords[i].password, ++passwords[i].keyslot_index);
 			free(passwords[i].password);
 		}
 		else
 			printf("exhausted wordlist for keyslot %d\n", passwords[i].keyslot_index);
 	}
+
+	free(passwords);
 
 	for (i=0; i < header.active_slot_count; i++)
 		free(header.active_key_slots[i]->key_data);

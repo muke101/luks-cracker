@@ -17,7 +17,7 @@ LIBS = -lcrypto -lpthread
 OBJ = parser.o cracker.o main.o
 
 #CFLAGS =$(STANDARD) $(LTO) $(GRAPHITE) $(IPA) $(SECURITY) $(WARNINGS) -I$(IDIR) $(TEST) 
-CFLAGS = -I$(IDIR) -Og $(TESTTHREADS)
+CFLAGS = -I$(IDIR) -Og $(TESTADDRESS)
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)

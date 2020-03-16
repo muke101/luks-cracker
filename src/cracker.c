@@ -43,7 +43,7 @@ struct keyslot_password *crack(struct phdr header, FILE *wordlist, unsigned thre
 		}
 
 		for(j=0; j < thread_number; j++)	{
-			pthread_join(threads[j].id, threads[j].result);
+			pthread_join(threads[j].id, &(threads[j].result));
 		}
 
 		for (j=0; j < thread_number; j++)
@@ -203,16 +203,15 @@ void *begin_brute_force(void *threadInfo)	{
 	for (i=0; i < thread.step && !password_found; i++)	{
 		getline(&password, &bufsize, fp);	
 		strip(password);
-		printf("%s\n",password);
 		derive_key(password, strlen(password), header, keyslot, derived_key); 
 		decrypt_blocks(block_count, SECTOR_SIZE, iv, iv_len, derived_key, enc_key, split_key);
 		af_merge(key_candidate, split_key, header.key_length, header.active_key_slots[keyslot]->stripes, header.version == 1 ? H1:H2); 
-		printf("testtesttest\n");
 		if (checksum(key_candidate, header))	{
 			password_found = 1;
 			unsigned char *successful_password = malloc(strlen(password));
 			memcpy(successful_password, password, strlen(password));
-			pthread_exit((void*)successful_password);
+			printf("password for keyslot %d found: %s\n", ++keyslot, password);
+			pthread_exit((void *)successful_password);
 		}
 	}
 
