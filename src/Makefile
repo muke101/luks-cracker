@@ -9,15 +9,14 @@ TESTTHREADS=-fsanitize=undefined,thread
 TESTADDRESS=-fsanitize=undefined,address
 
 IDIR=../include
-_DEPS = parser.h cracker.h
+_DEPS = parser.h cracker.h crypto_backend.o
 DEPS= $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 LIBS = -lcrypto -lpthread
 
-OBJ = parser.o cracker.o main.o
+OBJ = parser.o cracker.o crypto_backend.o main.o
 
-#CFLAGS =$(STANDARD) $(LTO) $(GRAPHITE) $(IPA) $(SECURITY) $(WARNINGS) -I$(IDIR) $(TEST) 
-CFLAGS = -I$(IDIR) -Og $(TESTADDRESS)
+CFLAGS =$(STANDARD) $(LTO) $(GRAPHITE) $(IPA) $(SECURITY) $(WARNINGS) -I$(IDIR) $(TEST) 
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)

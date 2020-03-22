@@ -1,3 +1,5 @@
 luksheader
 *.o
 lukscrack
+*.txt
+profile
