@@ -14,12 +14,14 @@ unsigned long count_lines(FILE *fp)	{
 	return i;
 }
 
-struct keyslot_password *crack(struct phdr header, FILE *wordlist, unsigned thread_number, unsigned number_of_keyslots)	{
+struct keyslot_password *crack(struct phdr header, char *wordlist, unsigned thread_number, unsigned number_of_keyslots)	{
 	unsigned i, j;
 	unsigned long password_number, passwords_per_thread, remainder;
-	password_number = count_lines(wordlist);	
+	FILE *fp = fopen(wordlist, "r");
+	password_number = count_lines(fp);	
 	passwords_per_thread = password_number/thread_number; //integer devision, will just mean the last thread takes on a couple more than the others if there are remainders
 	remainder = password_number % thread_number;
+	fclose(fp);
 
 	struct keyslot_password *passwords = calloc(number_of_keyslots, sizeof(struct keyslot_password));
 	struct T threads[thread_number];
@@ -184,7 +186,7 @@ void *begin_brute_force(void *threadInfo)	{
 	struct T thread = *((struct T *)threadInfo);
 	int keyslot = thread.keyslot;
 	struct phdr header = thread.header;
-	FILE *fp = thread.wordlist; //create local copy of wordlist file descriptor that each thread edits seperately
+	FILE *fp = fopen(thread.wordlist, "r"); 
 	unsigned char *global_key = header.active_key_slots[keyslot]->key_data;
 	unsigned split_length = header.active_key_slots[keyslot]->stripes*header.key_length;
 	unsigned char enc_key[split_length];
@@ -210,6 +212,7 @@ void *begin_brute_force(void *threadInfo)	{
 			password_found = 1;
 			unsigned char *successful_password = malloc(strlen(password));
 			memcpy(successful_password, password, strlen(password));
+			fclose(fp);
 			printf("password for keyslot %d found: %s\n", ++keyslot, password);
 			pthread_exit((void *)successful_password);
 		}

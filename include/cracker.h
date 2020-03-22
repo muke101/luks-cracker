@@ -15,14 +15,14 @@ struct keyslot_password	{
 	char *password;
 };
 
-struct  keyslot_password *crack(struct phdr header, FILE *wordlist, unsigned thread_number, unsigned number_of_keyslots);
+struct keyslot_password *crack(struct phdr header, char *wordlist, unsigned thread_number, unsigned number_of_keyslots);
 
 struct T	{
 	pthread_t id;
 	unsigned wordlist_start;
 	unsigned step;
 	struct phdr header;
-	FILE *wordlist;
+	char *wordlist;
 	unsigned keyslot;
 	void *result;
 };

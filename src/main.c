@@ -118,6 +118,8 @@ int main(int argc, char **argv)	{
 		return 1;
 	}
 
+	fclose(wordlist_file); //only opened to test if file can be read
+
 	if (number_of_slots > (unsigned)header.active_slot_count)	{
 		printf("specified number of key slots to crack greater than active key slots in LUKS header. The number of active key slots is: %d\n", header.active_slot_count);
 		return 1;
@@ -125,15 +127,15 @@ int main(int argc, char **argv)	{
 
 	struct keyslot_password *passwords; 
 
-	passwords = crack(header, wordlist_file, number_of_threads, number_of_slots);
+	passwords = crack(header, wordlist, number_of_threads, number_of_slots);
 
 	for (i=0; i < number_of_slots; i++)	{
 		if (passwords[i].password)	{
-			printf("Found password '%s'\n for keyslot %d\n", passwords[i].password, ++passwords[i].keyslot_index);
+			printf("\nFound password '%s'\n for keyslot %d\n\n", passwords[i].password, ++passwords[i].keyslot_index);
 			free(passwords[i].password);
 		}
 		else
-			printf("exhausted wordlist for keyslot %d\n", passwords[i].keyslot_index);
+			printf("exhausted wordlist for keyslot %d\n", ++passwords[i].keyslot_index);
 	}
 
 	free(passwords);
@@ -142,7 +144,6 @@ int main(int argc, char **argv)	{
 		free(header.active_key_slots[i]->key_data);
 
 	fclose(header_file);
-	fclose(wordlist_file);
 
 	return 0;
 }

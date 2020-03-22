@@ -1,10 +1,12 @@
 CC=gcc
-STANDARD=-Ofast -pipe -march=native -fomit-frame-pointer -fdevirtualize-at-ltrans 
+STANDARD=-Ofast -pipe -march=native -fomit-frame-pointer -fdevirtualize-at-ltrans -funroll-loops 
 WARNINGS=-Wall -Wextra -Wno-unused-result -Wno-unused-variable -Wno-unused-parameter
 LTO=-flto=10
 GRAPHITE=-fgraphite-identity -floop-nest-optimize -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block
 SECURITY=-no-pie -fno-stack-protector -fno-stack-clash-protection
 IPA=-fipa-pta
+PGO-GEN=-fprofile-generate=profile/
+PGO=-fprofile-use=../profile/ -fprofile-correction
 TESTTHREADS=-fsanitize=undefined,thread
 TESTADDRESS=-fsanitize=undefined,address
 
@@ -16,8 +18,8 @@ LIBS = -lcrypto -lpthread
 
 OBJ = parser.o cracker.o main.o
 
-#CFLAGS =$(STANDARD) $(LTO) $(GRAPHITE) $(IPA) $(SECURITY) $(WARNINGS) -I$(IDIR) $(TEST) 
-CFLAGS = -I$(IDIR) -Og $(TESTADDRESS)
+CFLAGS =$(STANDARD) $(LTO) $(GRAPHITE) $(IPA) $(SECURITY) $(WARNINGS) -I$(IDIR) $(PGO)
+#CFLAGS =$(TESTTHREADS) -I$(IDIR) -Og
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
