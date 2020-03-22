@@ -12,11 +12,11 @@ IDIR=../include
 _DEPS = parser.h cracker.h crypto_backend.o
 DEPS= $(patsubst %,$(IDIR)/%,$(_DEPS))
 
-LIBS = -lcrypto -lpthread
+LIBS = -lcrypto -lpthread -lm
 
 OBJ = parser.o cracker.o crypto_backend.o main.o
 
-CFLAGS =$(STANDARD) $(LTO) $(GRAPHITE) $(IPA) $(SECURITY) $(WARNINGS) -I$(IDIR) $(TEST) 
+CFLAGS =$(STANDARD) $(LTO) $(GRAPHITE) $(IPA) $(SECURITY) $(WARNINGS) -I$(IDIR) 
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)

@@ -76,6 +76,11 @@ void *begin_brute_force(void *threadInfo)	{
 	unsigned char iv[iv_len];
 	unsigned char split_key[split_length]; 
 	unsigned char key_candidate[header.key_length];
+	unsigned char payload_iv[iv_len];
+	memset(payload_iv, 0, iv_len);
+	*(uint64_t *)payload_iv = header.payload_offset;
+	printf("%d\n",header.payload_offset);
+	
 	
 	fseek(fp, thread.wordlist_start, SEEK_SET);
 	for (i=0; i < thread.step && !password_found; i++)	{
@@ -84,7 +89,7 @@ void *begin_brute_force(void *threadInfo)	{
 		derive_key(password, strlen(password), header, keyslot, derived_key); 
 		decrypt_blocks(block_count, SECTOR_SIZE, iv, iv_len, derived_key, enc_key, split_key);
 		af_merge(key_candidate, split_key, header.key_length, header.active_key_slots[keyslot]->stripes, header.version); 
-		if (checksum(key_candidate, header))	{
+		if (test_entropy(key_candidate, payload_iv, header.test_data) && checksum(key_candidate, header))	{ //condition will stop evaluating if entropy test fails, so long checksum operation only takes place for very likely password candidates
 			password_found = 1;
 			unsigned char *successful_password = malloc(strlen(password));
 			memcpy(successful_password, password, strlen(password));

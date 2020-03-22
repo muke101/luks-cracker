@@ -1,6 +1,7 @@
 #ifndef CRYPTO_BACKEND_H_
 #define CRYPTO_BACKEND_H_
 
+#include <math.h>
 #include <openssl/sha.h>
 #include <openssl/aes.h>
 #include <openssl/evp.h>
@@ -25,5 +26,7 @@ void derive_key(char *password, size_t password_len, struct phdr header, unsigne
 void decrypt_blocks(unsigned block_count, unsigned sector_size, unsigned char *iv, unsigned iv_len, unsigned char *derived_key, unsigned char *enc_key, unsigned char *split_key);
 
 int checksum(unsigned char *key, struct phdr header);
+
+int test_entropy(unsigned char *key, unsigned char *iv, unsigned char *test_data);
 
 #endif

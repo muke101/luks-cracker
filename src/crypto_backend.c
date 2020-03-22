@@ -123,3 +123,42 @@ int checksum(unsigned char *key, struct phdr header)	{
 	else 
 		return 0;
 }
+
+int test_entropy(unsigned char *key, unsigned char *iv, unsigned char *test_data)	{
+
+	double entropy = 0;
+	double freq[256];
+	unsigned char plain_text[SECTOR_SIZE];
+	int len, i, j, c;
+
+	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+	EVP_DecryptInit_ex(ctx, EVP_aes_256_xts(), NULL, key, iv);
+	EVP_DecryptUpdate(ctx, plain_text, &len, test_data, SECTOR_SIZE); 
+	EVP_DecryptFinal_ex(ctx, plain_text + len, &len);
+	EVP_CIPHER_CTX_free(ctx);
+
+	for (c=0; c < SECTOR_SIZE; c++)	{
+		printf("%c\n", plain_text[c]);
+	}
+
+	for (i=0; i < 256; i++) 	{
+		c = 0;
+		for (j=0; j < SECTOR_SIZE; j++)
+			if (plain_text[j] == i)	
+				c+=1;
+		freq[i] =  (double)c / SECTOR_SIZE;
+	}
+
+	for (i=0; i < 256; i++)
+		if (freq[i] > 0)
+			entropy += freq[i] * (log(freq[i])/log(2));
+	entropy = -entropy/8;
+
+	printf("%f\n", entropy);
+
+	if (entropy <= 0.2)
+		return 1;
+	else
+		return 0;
+
+}

@@ -45,6 +45,9 @@ void construct_header(struct phdr *header, FILE *fp)	{
 	fread(&header->mk_digest_iter, sizeof(uint32_t), 1, fp);
 	header->mk_digest_iter = be32toh(header->mk_digest_iter);
 
+	fseek(fp, header->payload_offset, SEEK_SET);
+	read_data(header->test_data, SECTOR_SIZE, fp);
+
 }
 
 void add_slot(struct phdr *header, FILE *fp)	{
